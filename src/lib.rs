@@ -1,12 +1,14 @@
 use interpolation::interpolation::Linear;
-use nih_plug::prelude::*;
+use nih_plug::{params::persist, prelude::*};
 use trig::{Dust, Impulse, Trigger};
 use std::sync::Arc;
 use grains::Granulator;
 use envelope::EnvType;
 use waveshape::traits::Waveshape;
+use nih_plug_iced::IcedState;
 use rand::Rng;
 
+mod editor;
 
 // This is a shortened version of the gain example with most comments removed, check out
 // https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
@@ -25,6 +27,9 @@ struct HavregrynParams {
     /// these IDs remain constant, you can rename and reorder these fields as you wish. The
     /// parameters are exposed to the host in the same order they were defined. In this case, this
     /// gain parameter is stored as linear gain while the values are displayed in decibels.
+    #[persist = "editor-state"]
+    editor_state: Arc<IcedState>
+
     #[id = "wet"]
     pub wet: FloatParam,
     #[id = "position"]
@@ -41,8 +46,6 @@ struct HavregrynParams {
     pub random: BoolParam,
     #[id = "resample"]
     pub resample: BoolParam,
-
-
 }
 
 impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAINS, BUFSIZE> {
@@ -66,6 +69,7 @@ impl Default for HavregrynParams {
         Self {
             // This gain is stored as linear gain. NIH-plug comes with useful conversion functions
             // to treat these kinds of parameters as if we were dealing with decibels. Storing this
+            editor_state: editor::default_state(),
             // as decibels is easier to work with, but requires a conversion for every sample.
             wet: FloatParam::new(
                 "wet",
@@ -189,6 +193,14 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     fn reset(&mut self) {
         // Reset buffers and envelopes here. This can be called from the audio thread and may not
         // allocate. You can remove this function if you do not need it.
+    }
+    
+    fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
+        editor::create(
+            self.params.clone(),
+            self.peak_meter.clone(),
+            self.params.editor_state.clone(),
+        )
     }
 
 
