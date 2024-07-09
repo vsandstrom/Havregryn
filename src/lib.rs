@@ -7,6 +7,7 @@ use envelope::EnvType;
 use waveshape::traits::Waveshape;
 use rand::Rng;
 
+
 // This is a shortened version of the gain example with most comments removed, check out
 // https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
 // started
@@ -40,6 +41,7 @@ struct HavregrynParams {
     pub random: BoolParam,
     #[id = "resample"]
     pub resample: BoolParam,
+
 
 }
 
@@ -91,10 +93,10 @@ impl Default for HavregrynParams {
               FloatRange::Linear { min: 0.0, max: 1.0 }
             ),
             duration: FloatParam::new(
-              "grain duration", 
+              "grain length", 
               0.2, 
               FloatRange::Skewed { min: 0.05, max: 2.5, factor: 0.8 }
-            ),
+            ).with_unit(" sec"),
             rate: FloatParam::new(
               "speed",
               1.0,
@@ -104,12 +106,12 @@ impl Default for HavregrynParams {
               "jitter amount",
               0.0,
               FloatRange::Linear { min: 0.0, max: 1.0 }
-            ), 
+            ),
             trigger: FloatParam::new(
-              "trigger duration", 
+              "trigger interval", 
               1.0, 
               FloatRange::Skewed { min: 0.03, max: 5.0, factor: 0.7 }
-            ), 
+            ).with_unit(" sec"),
             resample: BoolParam::new(
               "sample", 
               false
@@ -156,7 +158,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     // from plain byte buffers.
     type SysExMessage = ();
     // More advanced plugins can use this to run expensive background tasks. See the field's
-    // documentation for more information. `()` means that the plugin does not have any background
+    // documentation for more information. `()` means that the plugin does not have any backgrouggnd
     // tasks.
     type BackgroundTask = ();
 
@@ -188,6 +190,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         // Reset buffers and envelopes here. This can be called from the audio thread and may not
         // allocate. You can remove this function if you do not need it.
     }
+
 
     fn process(
         &mut self,
@@ -247,7 +250,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
 
         ProcessStatus::Normal
     }
-}
+        }
 
 impl<const NUMGRAINS: usize, const BUFSIZE: usize> ClapPlugin for Havregryn<NUMGRAINS, BUFSIZE> {
     const CLAP_ID: &'static str = "com.your-domain.havregryn";
