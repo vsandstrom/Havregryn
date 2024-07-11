@@ -18,6 +18,7 @@ crate-type = ["cdylib"]
 # thread in debug builds.
 # nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["assert_process_allocs", "standalone"] }
 nih_plug = { path = "../nih-plug", features = ["assert_process_allocs", "standalone"] }
+nih_plug_webview = { path = "../nih-plug-webview" }
 nih_plug_iced = { path = "../nih-plug/nih_plug_iced" }
 # nih_plug_egui = { path = "../nih-plug/nih_plug_egui" }
 # nih_plug_vizia = { path = "../nih-plug/nih_plug_vizia" }
@@ -31,6 +32,8 @@ trig = { path = "../dsp/trig"}
 interpolation = { path = "../dsp/interpolation"}
 envelope = { path = "../dsp/envelope"}
 rand = "0.8.5"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0"
 # Uncomment the below line to disable the on-by-default VST3 feature to remove
 # the GPL compatibility requirement
 # nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", default-features = false, features = ["assert_process_allocs"] }
