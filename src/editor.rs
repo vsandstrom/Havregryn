@@ -2,6 +2,9 @@ use atomic_float::AtomicF32;
 use nih_plug::prelude::{util, Editor, GuiContext};
 use nih_plug_iced::widgets as nih_widgets;
 use nih_plug_iced::*;
+use nih_plug_iced::button;
+use pane_grid::Content;
+use widgets::generic_ui::GenericUi;
 use widgets::ParamMessage;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -25,14 +28,14 @@ struct HavregrynEditor {
   params: Arc<HavregrynParams>,
   context: Arc<dyn GuiContext>,
 
-  wet: Arc<AtomicF32>,
-  position: Arc<AtomicF32>,
-  duration: Arc<AtomicF32>,
-  rate: Arc<AtomicF32>,
-  jitter: Arc<AtomicF32>,
-  trigger: Arc<AtomicF32>,
-  random: Arc<AtomicBool>,
-  resample: Arc<AtomicBool>,
+  // wet: Arc<AtomicF32>,
+  // position: Arc<AtomicF32>,
+  // duration: Arc<AtomicF32>,
+  // rate: Arc<AtomicF32>,
+  // jitter: Arc<AtomicF32>,
+  // trigger: Arc<AtomicF32>,
+  // random: Arc<AtomicBool>,
+  // resample: Arc<AtomicBool>,
 
   wet_slider_state: nih_widgets::param_slider::State,
   pos_slider_state: nih_widgets::param_slider::State,
@@ -41,6 +44,7 @@ struct HavregrynEditor {
   jit_slider_state: nih_widgets::param_slider::State,
   trig_slider_state: nih_widgets::param_slider::State,
   rand_button_state: nih_widgets::param_slider::State,
+  // rand2_button_state: nih_wi,
   resample_button_state: nih_widgets::param_slider::State,
 }
 
@@ -48,6 +52,10 @@ struct HavregrynEditor {
 enum Message {
   /// Update a parameter's value.
   ParamUpdate(nih_widgets::ParamMessage),
+  // RandTrue,
+  // RandFalse,
+  // ResampleTrue, 
+  // ResampleFalse,
 }
 
 impl IcedEditor for HavregrynEditor {
@@ -63,14 +71,14 @@ impl IcedEditor for HavregrynEditor {
       params,
       context,
 
-      wet:      Arc::new(AtomicF32::new(0.0)),
-      position: Arc::new(AtomicF32::new(0.0)),
-      duration: Arc::new(AtomicF32::new(0.2)),
-      rate:     Arc::new(AtomicF32::new(1.0)),
-      jitter:   Arc::new(AtomicF32::new(0.0)),
-      trigger:  Arc::new(AtomicF32::new(0.5)),
-      random:   Arc::new(AtomicBool::new(false)),
-      resample: Arc::new(AtomicBool::new(false)),
+      // wet:      Arc::new(AtomicF32::new(0.0)),
+      // position: Arc::new(AtomicF32::new(0.0)),
+      // duration: Arc::new(AtomicF32::new(0.2)),
+      // rate:     Arc::new(AtomicF32::new(1.0)),
+      // jitter:   Arc::new(AtomicF32::new(0.0)),
+      // trigger:  Arc::new(AtomicF32::new(0.5)),
+      // random:   Arc::new(AtomicBool::new(false)),
+      // resample: Arc::new(AtomicBool::new(false)),
 
       wet_slider_state:      Default::default(),
       pos_slider_state:      Default::default(),
@@ -80,6 +88,7 @@ impl IcedEditor for HavregrynEditor {
       trig_slider_state:     Default::default(),
       resample_button_state: Default::default(),
       rand_button_state:     Default::default(),
+      // rand2_button_state:    Default::default(),
     };
 
     (editor, Command::none())
@@ -96,13 +105,13 @@ impl IcedEditor for HavregrynEditor {
   ) -> Command<Self::Message> {
     match message {
       Message::ParamUpdate(message) => self.handle_param_message(message),
+      // Message::RandTrue => self.handle_param_message(message)
     }
 
     Command::none()
   }
 
   fn view(&mut self) -> Element<'_, Self::Message> {
-    
     Column::new()
       .align_items(Alignment::Center)
       .push(Space::with_width(180.into()))
@@ -201,9 +210,8 @@ impl IcedEditor for HavregrynEditor {
       .push(
         nih_widgets::ParamSlider::new(&mut self.resample_button_state, &self.params.resample)
           .height(15.into())
-          .map(Message::ParamUpdate),
+          .map(Message::ParamUpdate)
       )
-
       .push(Space::with_height(10.into()))
     .into()
   }

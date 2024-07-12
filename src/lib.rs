@@ -16,15 +16,15 @@ mod editor;
 #[derive(Deserialize)]
 #[serde(tag = "type")]
 enum Action {
-    Init,
-    SetSize   { width: u32, height: u32 },
-    SetPos    { value: f32 },
-    SetDur    { value: f32 },
-    SetRate   { value: f32 },
-    SetJit    { value: f32 },
-    SetTrig   { value: f32 },
-    SetRandom { value: bool },
-    SetSample { value: bool },
+  Init,
+  SetSize   { width: u32, height: u32 },
+  SetPos    { value: f32 },
+  SetDur    { value: f32 },
+  SetRate   { value: f32 },
+  SetJit    { value: f32 },
+  SetTrig   { value: f32 },
+  SetRandom { value: bool },
+  SetSample { value: bool },
 }
 
 // This is a shortened version of the gain example with most comments removed, check out
@@ -182,7 +182,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
   // tasks.
   type BackgroundTask = ();
 
-  fn params(&self) -> Arc<dyn Params> {
+  fn params(&self) -> Arc<dyn Params + 'static> {
       self.params.clone()
   }
 
