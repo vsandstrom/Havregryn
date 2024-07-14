@@ -1,8 +1,7 @@
 use interpolation::interpolation::Linear;
 use nih_plug::{params::persist, prelude::*};
-use nih_plug_iced::IcedState;
-use nih_plug_webview::*;
 use trig::{Dust, Impulse, Trigger};
+use nih_plug_vizia::ViziaState;
 use std::sync::Arc;
 use grains::Granulator;
 use envelope::EnvType;
@@ -11,21 +10,6 @@ use serde::Deserialize;
 use rand::Rng;
 
 mod editor;
-
-
-#[derive(Deserialize)]
-#[serde(tag = "type")]
-enum Action {
-  Init,
-  SetSize   { width: u32, height: u32 },
-  SetPos    { value: f32 },
-  SetDur    { value: f32 },
-  SetRate   { value: f32 },
-  SetJit    { value: f32 },
-  SetTrig   { value: f32 },
-  SetRandom { value: bool },
-  SetSample { value: bool },
-}
 
 // This is a shortened version of the gain example with most comments removed, check out
 // https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
@@ -38,6 +22,10 @@ struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   dust: Dust
 }
 
+trait HavregrynTrait {
+  fn set_samplerate(&mut self, samplerate: f32);
+}
+
 #[derive(Params)]
 struct HavregrynParams {
   /// The parameter's ID is used to identify the parameter in the wrappred plugin API. As long as
@@ -45,7 +33,7 @@ struct HavregrynParams {
   /// parameters are exposed to the host in the same order they were defined. In this case, this
   /// gain parameter is stored as linear gain while the values are displayed in decibels.
   #[persist = "editor-state"]
-  pub editor_state: Arc<IcedState>,
+  pub editor_state: Arc<ViziaState>,
   #[id = "wet"]
   pub wet: FloatParam,
   #[id = "position"]
@@ -86,7 +74,7 @@ impl Default for HavregrynParams {
       // This gain is stored as linear gain. NIH-plug comes with useful conversion functions
       // to treat these kinds of parameters as if we were dealing with decibels. Storing this
       // as decibels is easier to work with, but requires a conversion for every sample.
-      editor_state: IcedState::from_size(650, 450),
+      editor_state: ViziaState::new(|| {(650, 450)}),
       wet: FloatParam::new(
         "wet",
         util::db_to_gain(0.0),
@@ -196,10 +184,10 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     // The `reset()` function is always called right after this function. You can remove this
     // function if you do not need it.
     let sr = buffer_config.sample_rate;
-    self.imp.samplerate = sr;
-    self.dust.samplerate = sr;
-    for i in 0..2 { self.granulators[i].samplerate = sr; }
-
+    self.imp.set_samplerate(sr);
+    self.dust.set_samplerate(sr);
+    self.granulators[0].set_samplerate(sr);
+    self.granulators[1].set_samplerate(sr);
     true
   }
 

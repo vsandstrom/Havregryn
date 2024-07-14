@@ -18,10 +18,10 @@ crate-type = ["cdylib"]
 # thread in debug builds.
 # nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["assert_process_allocs", "standalone"] }
 nih_plug = { path = "../nih-plug", features = ["assert_process_allocs", "standalone"] }
-nih_plug_webview = { path = "../nih-plug-webview" }
-nih_plug_iced = { path = "../nih-plug/nih_plug_iced" }
+# nih_plug_webview = { path = "../nih-plug-webview" }
+# nih_plug_iced = { path = "../nih-plug/nih_plug_iced" }
 # nih_plug_egui = { path = "../nih-plug/nih_plug_egui" }
-# nih_plug_vizia = { path = "../nih-plug/nih_plug_vizia" }
+nih_plug_vizia = { path = "../nih-plug/nih_plug_vizia" }
 atomic_float = "0.1"
 
 dsp = { path = "../dsp/dsp"}
