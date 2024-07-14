@@ -18,6 +18,9 @@ crate-type = ["cdylib"]
 # thread in debug builds.
 # nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["assert_process_allocs", "standalone"] }
 nih_plug = { path = "../nih-plug", features = ["assert_process_allocs", "standalone"] }
+# nih_plug_webview = { path = "../nih-plug-webview" }
+# serde = {version = "1.0.152", features = ["derive"]}
+# serde_json = "1.0"
 # nih_plug_iced = { path = "../nih-plug/nih_plug_iced" }
 # nih_plug_egui = { path = "../nih-plug/nih_plug_egui" }
 # nih_plug_vizia = { path = "../nih-plug/nih_plug_vizia" }
