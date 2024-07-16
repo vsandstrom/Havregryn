@@ -22,6 +22,15 @@ struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   dust: Dust
 }
 
+#[derive(Enum, PartialEq)]
+enum ModShape {
+  SINE,
+  TRI,
+  SAW,
+  SQUARE,
+  RANDOM
+}
+
 trait HavregrynTrait {
   fn set_samplerate(&mut self, samplerate: f32);
 }
@@ -44,6 +53,8 @@ struct HavregrynParams {
   pub rate: FloatParam,
   #[id = "rate-mod-amount"]
   pub rate_mod_amount: FloatParam,
+  #[id = "rate-mod-shape"]
+  pub rate_mod_shape: EnumParam<ModShape>,
   #[id = "rate-mod-freq"]
   pub rate_mod_freq: FloatParam,
   #[id = "jitter"]
@@ -123,20 +134,26 @@ impl Default for HavregrynParams {
       rate_mod_freq: FloatParam::new(
         "mod freq",
         12.0,
-        FloatRange::Skewed { min: 4.0, max: 60.0, factor: 0.5 }
-      ).with_value_to_string(Arc::new(|f| { format!("{:.2}", f) }))
+        FloatRange::Skewed { min: 0.2, max: 60.0, factor: 0.3 }
+      )
+      .with_smoother(SmoothingStyle::Logarithmic(50.0))
+      .with_value_to_string(Arc::new(|f| { format!("{:.2}", f) }))
       .with_unit(" Hz"),
       rate_mod_amount: FloatParam::new(
         "mod amount",
         0.0,
-        FloatRange::Skewed { min: 0.002, max: 1.0, factor: 0.5 }
+        FloatRange::Skewed { min: 0.002, max: 1.0, factor: 0.26 }
       )
+      .with_smoother(SmoothingStyle::Logarithmic(50.0))
       .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
+      rate_mod_shape: EnumParam::new("mod shape", ModShape::SINE),
+
       jitter: FloatParam::new(
         "jitter amount",
         0.0,
         FloatRange::Linear { min: 0.0, max: 1.0 }
       )
+      .with_smoother(SmoothingStyle::Logarithmic(50.0))
       .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
       trigger: FloatParam::new(
         "trigger interval", 
@@ -144,6 +161,7 @@ impl Default for HavregrynParams {
         FloatRange::Skewed { min: 0.03, max: 5.0, factor: 0.7 }
       )
       .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
+      .with_smoother(SmoothingStyle::Logarithmic(50.0))
       .with_unit(" sec"),
       resample: BoolParam::new(
         "sample", 
