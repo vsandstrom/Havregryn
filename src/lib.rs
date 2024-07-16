@@ -102,50 +102,55 @@ impl Default for HavregrynParams {
           factor: FloatRange::gain_skew_factor(-30.0, 30.0),
         },
       )
-      // Because the gain parameter is stored as linear gain instead of storing the value as
-      // decibels, we need logarithmic smoothing
-      .with_smoother(SmoothingStyle::Logarithmic(50.0))
-      .with_unit(" dB")
-      // There are many predefined formatters we can use here. If the gain was stored as
-      // decibels instead of as a linear gain value, we could have also used the
-      // `.with_step_size(0.1)` function to get internal rounding.
-      .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
-      .with_string_to_value(formatters::s2v_f32_gain_to_db()),
+        // Because the gain parameter is stored as linear gain instead of storing the value as
+        // decibels, we need logarithmic smoothing
+        .with_smoother(SmoothingStyle::Logarithmic(50.0))
+        .with_unit(" dB")
+        // There are many predefined formatters we can use here. If the gain was stored as
+        // decibels instead of as a linear gain value, we could have also used the
+        // `.with_step_size(0.1)` function to get internal rounding.
+        .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
+        .with_string_to_value(formatters::s2v_f32_gain_to_db()),
+
       position: FloatParam::new(
         "position", 
         0.0, 
         FloatRange::Linear { min: 0.0, max: 1.0 }
       )
-      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })
-      ),
+        .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
+
       duration: FloatParam::new(
         "grain length", 
         0.2, 
         FloatRange::Skewed { min: 0.05, max: 2.5, factor: 0.8 }
       )
-      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
-      .with_unit(" sec"),
+        .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
+        .with_unit(" sec"),
+
       rate: FloatParam::new(
         "speed",
         1.0,
         FloatRange::Linear { min: -1.0, max: 1.0 }
       ) 
-      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
+        .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
+
       rate_mod_freq: FloatParam::new(
         "mod freq",
         12.0,
         FloatRange::Skewed { min: 0.2, max: 60.0, factor: 0.3 }
       )
-      .with_smoother(SmoothingStyle::Logarithmic(50.0))
-      .with_value_to_string(Arc::new(|f| { format!("{:.2}", f) }))
-      .with_unit(" Hz"),
+        .with_smoother(SmoothingStyle::Logarithmic(50.0))
+        .with_value_to_string(Arc::new(|f| { format!("{:.2}", f) }))
+        .with_unit(" Hz"),
+
       rate_mod_amount: FloatParam::new(
         "mod amount",
         0.0,
         FloatRange::Skewed { min: 0.002, max: 1.0, factor: 0.26 }
       )
-      .with_smoother(SmoothingStyle::Logarithmic(50.0))
-      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
+        .with_smoother(SmoothingStyle::Logarithmic(50.0))
+        .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
+
       rate_mod_shape: EnumParam::new("mod shape", ModShape::SINE),
 
       jitter: FloatParam::new(
@@ -153,20 +158,23 @@ impl Default for HavregrynParams {
         0.0,
         FloatRange::Linear { min: 0.0, max: 1.0 }
       )
-      .with_smoother(SmoothingStyle::Logarithmic(50.0))
-      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
+        .with_smoother(SmoothingStyle::Logarithmic(50.0))
+        .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
+
       trigger: FloatParam::new(
         "trigger interval", 
         1.0, 
         FloatRange::Skewed { min: 0.03, max: 5.0, factor: 0.7 }
       )
-      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
-      .with_smoother(SmoothingStyle::Logarithmic(50.0))
-      .with_unit(" sec"),
+        .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
+        .with_smoother(SmoothingStyle::Logarithmic(50.0))
+        .with_unit(" sec"),
+
       resample: BoolParam::new(
         "sample", 
         false
       ),
+
       random: BoolParam::new(
         "random", 
         false

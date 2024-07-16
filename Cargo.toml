@@ -21,13 +21,13 @@ nih_plug = { path = "../nih-plug", features = ["assert_process_allocs", "standal
 nih_plug_vizia = { path = "../nih-plug/nih_plug_vizia" }
 atomic_float = "0.1"
 
-dsp = { path = "../dsp/dsp"}
-grains = { path = "../dsp/grains" }
-wavetable = { path = "../dsp/wavetable"}
-waveshape = { path = "../dsp/waveshape"}
-trig = { path = "../dsp/trig"}
-interpolation = { path = "../dsp/interpolation"}
-envelope = { path = "../dsp/envelope"}
+dsp = { path = "rust_dsp/dsp"}
+grains = { path = "rust_dsp/grains" }
+wavetable = { path = "rust_dsp/wavetable"}
+waveshape = { path = "rust_dsp/waveshape"}
+trig = { path = "rust_dsp/trig"}
+interpolation = { path = "rust_dsp/interpolation"}
+envelope = { path = "rust_dsp/envelope"}
 rand = "0.8.5"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0"
