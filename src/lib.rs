@@ -1,23 +1,23 @@
-use interpolation::interpolation::Linear;
-use nih_plug::{params::persist, prelude::*};
-use trig::{Dust, Impulse, Trigger};
+
+use std::sync::{atomic::AtomicBool, Arc};
+use rand::Rng;
+
+use nih_plug::prelude::*;
 use nih_plug_vizia::ViziaState;
-use std::sync::Arc;
+
 use grains::Granulator;
 use envelope::EnvType;
 use waveshape::traits::Waveshape;
-use serde::Deserialize;
-use rand::Rng;
+use wavetable::owned::WaveTable;
+use interpolation::interpolation::Linear;
+use trig::{Dust, Impulse, Trigger};
 
 mod editor;
-
-// This is a shortened version of the gain example with most comments removed, check out
-// https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
-// started
 
 struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   params: Arc<HavregrynParams>,
   granulators: [Granulator<NUMGRAINS, BUFSIZE>; 2],
+  rate_modulator: WaveTable<{1<<13}>,
   imp: Impulse,
   dust: Dust
 }
@@ -42,6 +42,10 @@ struct HavregrynParams {
   pub duration: FloatParam,
   #[id = "rate"]
   pub rate: FloatParam,
+  #[id = "rate-mod-amount"]
+  pub rate_mod_amount: FloatParam,
+  #[id = "rate-mod-freq"]
+  pub rate_mod_freq: FloatParam,
   #[id = "jitter"]
   pub jitter: FloatParam,
   #[id = "trigger"]
@@ -50,6 +54,8 @@ struct HavregrynParams {
   pub random: BoolParam,
   #[id = "resample"]
   pub resample: BoolParam,
+
+  pub resample_bool: Arc<AtomicBool>
 }
 
 impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAINS, BUFSIZE> {
@@ -58,9 +64,11 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
     let granulators = [Granulator::new(&env_shape, 0.0), Granulator::new(&env_shape, 0.0)];
     let imp = Impulse::new(0.0);
     let dust = Dust::new(0.0);
+    let rate_modulator = WaveTable::new([0.0;{1<<13}].sine(), 0.0);
 
     Self {
       params: Arc::new(HavregrynParams::default()),
+      rate_modulator,
       granulators,
       imp,
       dust
@@ -71,10 +79,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
 impl Default for HavregrynParams {
   fn default() -> Self {
     Self {
-      // This gain is stored as linear gain. NIH-plug comes with useful conversion functions
-      // to treat these kinds of parameters as if we were dealing with decibels. Storing this
-      // as decibels is easier to work with, but requires a conversion for every sample.
-      editor_state: ViziaState::new(|| {(650, 450)}),
+      editor_state: editor::default_state(),
       wet: FloatParam::new(
         "wet",
         util::db_to_gain(0.0),
@@ -99,27 +104,47 @@ impl Default for HavregrynParams {
         "position", 
         0.0, 
         FloatRange::Linear { min: 0.0, max: 1.0 }
+      )
+      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })
       ),
       duration: FloatParam::new(
         "grain length", 
         0.2, 
         FloatRange::Skewed { min: 0.05, max: 2.5, factor: 0.8 }
-      ).with_unit(" sec"),
+      )
+      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
+      .with_unit(" sec"),
       rate: FloatParam::new(
         "speed",
         1.0,
         FloatRange::Linear { min: -1.0, max: 1.0 }
-      ),
+      ) 
+      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
+      rate_mod_freq: FloatParam::new(
+        "mod freq",
+        12.0,
+        FloatRange::Skewed { min: 4.0, max: 60.0, factor: 0.5 }
+      ).with_value_to_string(Arc::new(|f| { format!("{:.2}", f) }))
+      .with_unit(" Hz"),
+      rate_mod_amount: FloatParam::new(
+        "mod amount",
+        0.0,
+        FloatRange::Skewed { min: 0.002, max: 1.0, factor: 0.5 }
+      )
+      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
       jitter: FloatParam::new(
         "jitter amount",
         0.0,
         FloatRange::Linear { min: 0.0, max: 1.0 }
-      ),
+      )
+      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
       trigger: FloatParam::new(
         "trigger interval", 
         1.0, 
         FloatRange::Skewed { min: 0.03, max: 5.0, factor: 0.7 }
-      ).with_unit(" sec"),
+      )
+      .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
+      .with_unit(" sec"),
       resample: BoolParam::new(
         "sample", 
         false
@@ -128,6 +153,8 @@ impl Default for HavregrynParams {
         "random", 
         false
       ),
+
+      resample_bool: Arc::new(AtomicBool::new(false))
     }
   }
 }
@@ -188,6 +215,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     self.dust.set_samplerate(sr);
     self.granulators[0].set_samplerate(sr);
     self.granulators[1].set_samplerate(sr);
+    self.rate_modulator.samplerate = sr;
     true
   }
 
@@ -218,6 +246,9 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
       let dur  = self.params.duration.smoothed.next();
       let rate = self.params.rate.smoothed.next();
       let jit  = self.params.jitter.smoothed.next() * rand::thread_rng().gen::<f32>();
+      let rmod = self.params.rate_mod_amount.smoothed.next();
+      let rfrq = self.params.rate_mod_freq.smoothed.next();
+
 
       if self.params.resample.value() {
         for gr in self.granulators.iter_mut() {
@@ -237,7 +268,6 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         }
       };
 
-
       for (ch, sample) in channel_samples.into_iter().enumerate() {
         // Once per channel/sample
         if let Some(sig) = self.granulators[ch].record(*sample) {
@@ -247,7 +277,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
           let gr = self.granulators[ch].play::<Linear, Linear>(
             pos,
             dur,
-            rate,
+            rate + (self.rate_modulator.play::<Linear>(rfrq, 0.0) * rmod),
             jit,
             trigger
           );
