@@ -1,16 +1,20 @@
-
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::{
+  atomic::AtomicBool, 
+  Arc};
 use rand::Rng;
 
 use nih_plug::prelude::*;
 use nih_plug_vizia::ViziaState;
 
-use grains::Granulator;
-use envelope::EnvType;
-use waveshape::traits::Waveshape;
-use wavetable::owned::WaveTable;
-use interpolation::interpolation::Linear;
-use trig::{Dust, Impulse, Trigger};
+use rust_dsp::{
+  grains::Granulator,
+  envelope::EnvType,
+  waveshape::traits::Waveshape,
+  wavetable::owned::WaveTable,
+  interpolation::Linear,
+  trig::{Dust, Impulse, Trigger},
+};
+
 
 mod editor;
 
@@ -31,10 +35,6 @@ enum ModShape {
   RANDOM
 }
 
-trait HavregrynTrait {
-  fn set_samplerate(&mut self, samplerate: f32);
-}
-
 #[derive(Params)]
 struct HavregrynParams {
   /// The parameter's ID is used to identify the parameter in the wrappred plugin API. As long as
@@ -43,8 +43,6 @@ struct HavregrynParams {
   /// gain parameter is stored as linear gain while the values are displayed in decibels.
   #[persist = "editor-state"]
   pub editor_state: Arc<ViziaState>,
-  #[id = "wet"]
-  pub wet: FloatParam,
   #[id = "position"]
   pub position: FloatParam,
   #[id = "duration"]
@@ -66,6 +64,7 @@ struct HavregrynParams {
   #[id = "resample"]
   pub resample: BoolParam,
 
+  #[allow(unused)]
   pub resample_bool: Arc<AtomicBool>
 }
 
@@ -91,26 +90,6 @@ impl Default for HavregrynParams {
   fn default() -> Self {
     Self {
       editor_state: editor::default_state(),
-      wet: FloatParam::new(
-        "wet",
-        util::db_to_gain(0.0),
-        FloatRange::Skewed {
-          min: util::db_to_gain(-30.0),
-          max: util::db_to_gain(30.0),
-          // This makes the range appear as if it was linear when displaying the values as
-          // decibels
-          factor: FloatRange::gain_skew_factor(-30.0, 30.0),
-        },
-      )
-        // Because the gain parameter is stored as linear gain instead of storing the value as
-        // decibels, we need logarithmic smoothing
-        .with_smoother(SmoothingStyle::Logarithmic(50.0))
-        .with_unit(" dB")
-        // There are many predefined formatters we can use here. If the gain was stored as
-        // decibels instead of as a linear gain value, we could have also used the
-        // `.with_step_size(0.1)` function to get internal rounding.
-        .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
-        .with_string_to_value(formatters::s2v_f32_gain_to_db()),
 
       position: FloatParam::new(
         "position", 
@@ -251,7 +230,10 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
   }
   
   fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-    editor::create(self.params.clone(), self.params.editor_state.clone())
+    editor::create(
+      self.params.clone(),
+      self.params.editor_state.clone()
+    )
   }
 
 
@@ -262,7 +244,6 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     _context: &mut impl ProcessContext<Self>,
   ) -> ProcessStatus {
     // Once per buffer
-    let wet = self.params.trigger.smoothed.next();
     let trig = self.params.trigger.smoothed.next();
     let random = self.params.random.value();
 
@@ -300,15 +281,13 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
           // passthru
           *sample = sig;
         } else {
-          let gr = self.granulators[ch].play::<Linear, Linear>(
+          *sample = self.granulators[ch].play::<Linear, Linear>(
             pos,
             dur,
             rate + (self.rate_modulator.play::<Linear>(rfrq, 0.0) * rmod),
             jit,
             trigger
           );
-          *sample = (wet * gr) + (1.0 - wet) * (*sample);
-
         }
       }
     }
