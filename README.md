@@ -25,7 +25,7 @@ Havregryn is a granular delay and texture synthesizer. The name is swedish for g
 
 All values are sampled at the creation of a new grain, after that point it is out of your control.
 
-___current issue, the sample button should be momentary but this has not yet been implemented, you need to check it and uncheck it for the recording to start___
+___current issue, the sample button should be momentary but this has not yet been implemented, you have to leave it checked for the recording AND playback.___
 
 ## Building
 
