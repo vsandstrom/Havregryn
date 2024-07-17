@@ -138,9 +138,9 @@ impl Default for HavregrynParams {
       jitter: FloatParam::new(
         "jitter amount",
         0.0,
-        FloatRange::Linear { min: 0.0, max: 1.0 }
+        FloatRange::Linear { min: 0.001, max: 1.0 }
       )
-        .with_smoother(SmoothingStyle::Logarithmic(50.0))
+        .with_smoother(SmoothingStyle::Linear(20.0))
         .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
 
       trigger: FloatParam::new(

@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::sync::Arc;
 
 use nih_plug::editor::Editor;
@@ -151,11 +152,11 @@ where
   if name == "sample" {
     ParamButton::new(cx, params, f).with_label(name).width(width).height(height)
       .on_press(|e| {
-        if e.is_checked(){
-          e.set_background_color(Color::default())
+        if !e.is_checked() {
+          e.set_background_color(Color::rgb(0xff, 0x25, 0x5c)) // Lingonberry
         } else {
           // e.set_background_color(Color::rgb(0x80, 0x0, 0x20)) // Burgundy
-          e.set_background_color(Color::rgb(0xff, 0x25, 0x5c)) // Lingonberry
+          e.set_background_color(Color::default()) // Lingonberry
         }
       });
   } else {
