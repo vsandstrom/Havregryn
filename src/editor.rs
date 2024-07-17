@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use nih_plug::editor::Editor;
-use nih_plug::params::persist::PersistentField;
 use nih_plug::params::Param;
-use nih_plug_vizia::widgets::{GenericUi, ParamButton, ParamButtonExt, ParamSlider};
+use nih_plug_vizia::widgets::{ParamButton, ParamButtonExt, ParamSlider};
 use nih_plug_vizia::{assets, create_vizia_editor, ViziaState, ViziaTheming};
 use nih_plug_vizia::vizia::prelude::*;
 
@@ -62,10 +61,10 @@ fn build_gui(cx: &mut Context) {
     HStack::new(cx, |cx| {
       // Left column
       VStack::new(cx, |cx| {
-        create_slider(cx, "position", Data::params, LH, SH, SW, |params| &params.position);
-        create_slider(cx, "jitter",   Data::params, LH, SH, SW, |params| &params.jitter);
-        create_slider(cx, "duration", Data::params, LH, SH, SW, |params| &params.duration);
-        create_slider(cx, "trigger",  Data::params, LH, SH, SW, |params| &params.trigger);
+        create_slider(cx, "position", Data::params, LH, LW, SH, SW, |params| &params.position);
+        create_slider(cx, "jitter",   Data::params, LH, LW, SH, SW, |params| &params.jitter);
+        create_slider(cx, "duration", Data::params, LH, LW, SH, SW, |params| &params.duration);
+        create_slider(cx, "trigger",  Data::params, LH, LW, SH, SW, |params| &params.trigger);
 
       })
         .height(Percentage(90.0))
@@ -77,9 +76,9 @@ fn build_gui(cx: &mut Context) {
       
       // Right column
       VStack::new(cx, |cx| {
-        create_slider(cx, "rate",       Data::params, LH, SH, SW, |params| &params.rate);
-        create_slider(cx, "mod freq",   Data::params, LH, SH, SW, |params| &params.rate_mod_freq);
-        create_slider(cx, "mod amount", Data::params, LH, SH, SW, |params| &params.rate_mod_amount);
+        create_slider(cx, "rate",       Data::params, LH, LW, SH, SW, |params| &params.rate);
+        create_slider(cx, "mod freq",   Data::params, LH, LW, SH, SW, |params| &params.rate_mod_freq);
+        create_slider(cx, "mod amount", Data::params, LH, LW, SH, SW, |params| &params.rate_mod_amount);
         // create_slider(cx, "mod shape", Data::params, LH, SH, SW, |params| &params.rate_mod_shape);
                                                     
         VStack::new(cx, |cx| {
@@ -90,7 +89,7 @@ fn build_gui(cx: &mut Context) {
             .width(SW)
             .height(Pixels(42.0))
             .col_between(Percentage(10.0))
-            .top(Stretch(1.0))
+            .top(Stretch(1.8))
             .bottom(Stretch(1.0))
             .child_right(Stretch(1.0))
             .child_left(Stretch(1.0));
@@ -114,8 +113,17 @@ fn build_gui(cx: &mut Context) {
   });
 }
 
-fn create_slider<L, Params, P, FMap>(cx: &mut Context, name: &str, params: L, label_height: Units, height: Units, width: Units, f: FMap) 
-where
+fn create_slider<L, Params, P, FMap>(
+  cx: &mut Context,
+  name: &str,
+  params: L,
+  label_height: Units,
+  label_width: Units,
+  height: Units,
+  width: Units,
+  f: FMap
+  ) 
+  where
     L: Lens<Target = Params> + Clone,
     Params: 'static,
     P: Param + 'static,
@@ -123,7 +131,7 @@ where
 {
   VStack::new(cx, |cx| {
     Label::new(cx, name)
-      .width(width)
+      .width(label_width)
       .height(label_height)
       .text_align(TextAlign::Left);
     ParamSlider::new(cx, params, f)
@@ -147,7 +155,7 @@ where
           e.set_background_color(Color::default())
         } else {
           // e.set_background_color(Color::rgb(0x80, 0x0, 0x20)) // Burgundy
-e.set_background_color(Color::rgb(0xff, 0x25, 0x5c)) // Lingonberry
+          e.set_background_color(Color::rgb(0xff, 0x25, 0x5c)) // Lingonberry
         }
       });
   } else {

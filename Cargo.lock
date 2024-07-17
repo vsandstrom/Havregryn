@@ -2199,6 +2199,7 @@ dependencies = [
 [[package]]
 name = "nih_plug"
 version = "0.0.0"
+source = "git+https://github.com/robbert-vdh/nih-plug#ffe9b61fcb0441c9d33f4413f5ebe7394637b21f"
 dependencies = [
  "anyhow",
  "anymap",
@@ -2241,6 +2242,7 @@ source = "git+https://github.com/robbert-vdh/nih_plug_assets.git#a04e327923e120b
 [[package]]
 name = "nih_plug_derive"
 version = "0.1.0"
+source = "git+https://github.com/robbert-vdh/nih-plug#ffe9b61fcb0441c9d33f4413f5ebe7394637b21f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2250,6 +2252,7 @@ dependencies = [
 [[package]]
 name = "nih_plug_vizia"
 version = "0.0.0"
+source = "git+https://github.com/robbert-vdh/nih-plug#ffe9b61fcb0441c9d33f4413f5ebe7394637b21f"
 dependencies = [
  "baseview",
  "crossbeam",
@@ -2262,7 +2265,7 @@ dependencies = [
 [[package]]
 name = "nih_plug_xtask"
 version = "0.1.0"
-source = "git+https://github.com/robbert-vdh/nih-plug.git#ffe9b61fcb0441c9d33f4413f5ebe7394637b21f"
+source = "git+https://github.com/robbert-vdh/nih-plug#ffe9b61fcb0441c9d33f4413f5ebe7394637b21f"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -2982,6 +2985,7 @@ dependencies = [
 [[package]]
 name = "rust_dsp"
 version = "0.1.0"
+source = "git+https://github.com/vsandstrom/rust_dsp#30ffae8ea468212a5d99fb66257232bea4e93004"
 dependencies = [
  "rand 0.8.5",
 ]

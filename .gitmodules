@@ -1,3 +1,0 @@
-[submodule "rust_dsp"]
-	path = rust_dsp
-	url = git@github.com:vsandstrom/rust_dsp.git

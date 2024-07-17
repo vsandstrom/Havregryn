@@ -43,10 +43,16 @@ struct HavregrynParams {
   /// gain parameter is stored as linear gain while the values are displayed in decibels.
   #[persist = "editor-state"]
   pub editor_state: Arc<ViziaState>,
+
   #[id = "position"]
   pub position: FloatParam,
   #[id = "duration"]
   pub duration: FloatParam,
+  #[id = "jitter"]
+  pub jitter: FloatParam,
+  #[id = "trigger"]
+  pub trigger: FloatParam,
+
   #[id = "rate"]
   pub rate: FloatParam,
   #[id = "rate-mod-amount"]
@@ -55,10 +61,7 @@ struct HavregrynParams {
   pub rate_mod_shape: EnumParam<ModShape>,
   #[id = "rate-mod-freq"]
   pub rate_mod_freq: FloatParam,
-  #[id = "jitter"]
-  pub jitter: FloatParam,
-  #[id = "trigger"]
-  pub trigger: FloatParam,
+
   #[id = "random"]
   pub random: BoolParam,
   #[id = "resample"]
@@ -125,7 +128,7 @@ impl Default for HavregrynParams {
       rate_mod_amount: FloatParam::new(
         "mod amount",
         0.0,
-        FloatRange::Skewed { min: 0.002, max: 1.0, factor: 0.26 }
+        FloatRange::Skewed { min: 0.002, max: 1.0, factor: 0.46 }
       )
         .with_smoother(SmoothingStyle::Logarithmic(50.0))
         .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
@@ -143,10 +146,9 @@ impl Default for HavregrynParams {
       trigger: FloatParam::new(
         "trigger interval", 
         1.0, 
-        FloatRange::Skewed { min: 0.03, max: 5.0, factor: 0.7 }
+        FloatRange::Skewed { min: 0.03, max: 5.0, factor: 0.3 }
       )
         .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
-        .with_smoother(SmoothingStyle::Logarithmic(50.0))
         .with_unit(" sec"),
 
       resample: BoolParam::new(
@@ -257,11 +259,15 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
       let rfrq = self.params.rate_mod_freq.smoothed.next();
 
 
-      if self.params.resample.value() {
-        for gr in self.granulators.iter_mut() {
-          gr.reset_record();
+      match self.params.resample.value() {
+        true => {
+            self.granulators[0].reset_record();
+            self.granulators[1].reset_record();
+        },
+        false => {
+          ()
         }
-      }
+      } 
 
       let trigger = match random {
         true => {
