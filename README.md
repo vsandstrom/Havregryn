@@ -20,9 +20,12 @@ Havregryn is a granular delay and texture synthesizer. The name is swedish for g
   
 - random<br>changes the trigger mode from a static duration to a randomized duration between $(0.0, 2.0) * trigger\ interval$
 
-- sample<br>resets the record buffer and starts recording new input.
+- sample<br>resets the record buffer and starts recording new input. 
 
 All values are sampled at the creation of a new grain, after that point it is out of your control.
+
+___current issue, the sample button should be momentary but this has not yet been implemented, you need to check it and uncheck it for the recording to start___
+
 ## Building
 
 After installing [Rust](https://rustup.rs/), you can compile Havregryn as follows:
