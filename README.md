@@ -2,7 +2,7 @@
 
 Havregryn is a granular delay and texture synthesizer. The name is swedish for grains of oats, from which you can make havregrynsgröt, oatmeal.
 
-<img width="612" alt="Skärmavbild 2024-07-17 kl  07 27 56" src="https://github.com/user-attachments/assets/63c42358-c391-445d-9a58-0d5086c75d45">
+<img width="700" alt="Skärmavbild 2024-07-17 kl  16 25 01" src="https://github.com/user-attachments/assets/c5a7b58d-7ea3-4ea0-85ba-0316ec32b7c0">
 
 ### Controls
 - position<br>sets the position in the recorded buffer from where to start the next grain playback.
@@ -32,7 +32,6 @@ ___current issue, the sample button should be momentary but this has not yet bee
 After installing [Rust](https://rustup.rs/), you can compile Havregryn as follows:
 
 ```shell
-git submodule update --init --recursive
 cargo xtask bundle havregryn --release
 ```
 
