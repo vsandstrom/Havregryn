@@ -1676,8 +1676,6 @@ dependencies = [
  "nih_plug_vizia",
  "rand 0.8.5",
  "rust_dsp",
- "serde",
- "serde_json",
 ]
 
 [[package]]

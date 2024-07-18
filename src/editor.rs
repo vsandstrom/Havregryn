@@ -67,7 +67,6 @@ fn build_gui(cx: &mut Context) {
         create_slider(cx, "duration", Data::params, LH, LW, SH, SW, |params| &params.duration);
         create_slider(cx, "trigger",  Data::params, LH, LW, SH, SW, |params| &params.trigger);
         VStack::new(cx, |cx| {Label::new(cx, "Lorem");});
-
       })
         .height(Percentage(90.0))
         .left(Pixels(42.0))

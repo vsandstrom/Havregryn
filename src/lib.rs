@@ -15,13 +15,16 @@ use rust_dsp::{
   trig::{Dust, Impulse, Trigger},
 };
 
-
 mod editor;
+mod multitable;
+
+use crate::multitable::MultiTable;
 
 struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   params: Arc<HavregrynParams>,
   granulators: [Granulator<NUMGRAINS, BUFSIZE>; 2],
-  rate_modulator: WaveTable<{1<<13}>,
+  rate_modulator: MultiTable,
+  // rate_modulator: WaveTable<{1<<13}>,
   rate_wt_bufsize: usize,
   sin: [f32; 1<<13],
   tri: [f32; 1<<13],
@@ -79,32 +82,22 @@ struct HavregrynParams {
 impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAINS, BUFSIZE> {
   fn default() -> Self {
     let env_shape: EnvType = EnvType::Vector([0.0;512].hanning().to_vec());
-    let granulators = [Granulator::new(&env_shape, 0.0), Granulator::new(&env_shape, 0.0)];
-    let imp = Impulse::new(0.0);
-    let dust = Dust::new(0.0);
     const WT_BUFSIZE: usize = 1<<13;
     let mut sin = [0.0; WT_BUFSIZE];
-    let mut tri = [0.0; WT_BUFSIZE];
-    let mut saw = [0.0; WT_BUFSIZE];
-    let mut sqr = [0.0; WT_BUFSIZE];
     let sin = sin.sine();
-    let tri = tri.triangle();
-    let saw = saw.sawtooth();
-    let sqr = sqr.square();
-
-    let rate_modulator = WaveTable::<WT_BUFSIZE>::new(sin.borrow_mut(), 0.0);
 
     Self {
       params: Arc::new(HavregrynParams::default()),
-      rate_modulator,
       rate_wt_bufsize: WT_BUFSIZE,
       sin: *sin,
-      tri: *tri,
-      saw: *saw,
-      sqr: *sqr,
-      granulators,
-      imp,
-      dust
+      tri: *[0.0; WT_BUFSIZE].triangle(),
+      saw: *[0.0; WT_BUFSIZE].sawtooth(),
+      sqr: *[0.0; WT_BUFSIZE].square(),
+      // rate_modulator: WaveTable::<WT_BUFSIZE>::new(sin.borrow_mut(), 0.0),
+      rate_modulator: MultiTable::new(),
+      granulators: [Granulator::new(&env_shape, 0.0), Granulator::new(&env_shape, 0.0)],
+      imp: Impulse::new(0.0),
+      dust: Dust::new(0.0),
     }
   }
 }
@@ -120,11 +113,27 @@ impl Default for HavregrynParams {
         FloatRange::Linear { min: 0.0, max: 1.0 }
       )
         .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
+      
+      jitter: FloatParam::new(
+        "jitter amount",
+        0.0,
+        FloatRange::Skewed { min: 0.001, max: 1.0, factor: 1.46 }
+      )
+        .with_smoother(SmoothingStyle::Linear(20.0))
+        .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
 
       duration: FloatParam::new(
         "grain length", 
         0.2, 
         FloatRange::Skewed { min: 0.05, max: 2.5, factor: 0.8 }
+      )
+        .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
+        .with_unit(" sec"),
+
+      trigger: FloatParam::new(
+        "trigger interval", 
+        1.0, 
+        FloatRange::Skewed { min: 0.03, max: 2.5, factor: 0.8 }
       )
         .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
         .with_unit(" sec"),
@@ -154,22 +163,6 @@ impl Default for HavregrynParams {
         .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
 
       rate_mod_shape: EnumParam::new("mod shape", ModShape::SINE),
-
-      jitter: FloatParam::new(
-        "jitter amount",
-        0.0,
-        FloatRange::Linear { min: 0.001, max: 1.0 }
-      )
-        .with_smoother(SmoothingStyle::Linear(20.0))
-        .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
-
-      trigger: FloatParam::new(
-        "trigger interval", 
-        1.0, 
-        FloatRange::Skewed { min: 0.03, max: 5.0, factor: 0.46 }
-      )
-        .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
-        .with_unit(" sec"),
 
       resample: BoolParam::new(
         "sample", 
@@ -243,9 +236,9 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     self.granulators[0].set_samplerate(sr);
     self.granulators[1].set_samplerate(sr);
 
-    self.granulators[0].set_buffersize(4*sr as usize);
-    self.granulators[1].set_buffersize(4*sr as usize);
-    self.rate_modulator.samplerate = sr;
+    // self.granulators[0].set_buffersize((4.0 * sr) as usize);
+    // self.granulators[1].set_buffersize((4.0 * sr) as usize);
+    self.rate_modulator.set_samplerate(sr);
     true
   }
 
@@ -286,13 +279,6 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         }
       } 
     
-      // let modulator = match self.params.rate_mod_shape.value() {
-      //   ModShape::SINE =>   { todo!() },
-      //   ModShape::TRI =>    { todo!() },
-      //   ModShape::SAW =>    { todo!() },
-      //   ModShape::SQUARE => { todo!() },
-      //   ModShape::RANDOM => { rand::thread_rng().gen::<f32>() },
-      // };
 
       let trigger = match random {
         true => {
@@ -319,10 +305,19 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
           let rmod = self.params.rate_mod_amount.smoothed.next();
           let rfrq = self.params.rate_mod_freq.smoothed.next();
 
+          let modulator = match self.params.rate_mod_shape.value() {
+            ModShape::SINE =>   { self.rate_modulator.play(&self.sin, rfrq, 0.0) },
+            ModShape::TRI =>    { self.rate_modulator.play(&self.tri, rfrq, 0.0) },
+            ModShape::SAW =>    { self.rate_modulator.play(&self.saw, rfrq, 0.0) },
+            ModShape::SQUARE => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
+            ModShape::RANDOM => { rand::thread_rng().gen::<f32>() },
+          };
+
           *sample = self.granulators[ch].play::<Linear, Linear>(
             pos,
             dur,
-            rate + (self.rate_modulator.play::<Linear>(rfrq, 0.0) * rmod),
+            // rate + (self.rate_modulator.play::<Linear>(rfrq, 0.0) * rmod),
+            rate + (modulator * rmod),
             jit,
             trigger
           );
