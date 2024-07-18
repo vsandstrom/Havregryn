@@ -1,6 +1,6 @@
-use std::sync::{
+use std::{borrow::BorrowMut, sync::{
   atomic::AtomicBool, 
-  Arc};
+  Arc}};
 use rand::Rng;
 
 use nih_plug::prelude::*;
@@ -22,6 +22,11 @@ struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   params: Arc<HavregrynParams>,
   granulators: [Granulator<NUMGRAINS, BUFSIZE>; 2],
   rate_modulator: WaveTable<{1<<13}>,
+  rate_wt_bufsize: usize,
+  sin: [f32; 1<<13],
+  tri: [f32; 1<<13],
+  saw: [f32; 1<<13],
+  sqr: [f32; 1<<13],
   imp: Impulse,
   dust: Dust
 }
@@ -77,11 +82,26 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
     let granulators = [Granulator::new(&env_shape, 0.0), Granulator::new(&env_shape, 0.0)];
     let imp = Impulse::new(0.0);
     let dust = Dust::new(0.0);
-    let rate_modulator = WaveTable::new([0.0;{1<<13}].sine(), 0.0);
+    const WT_BUFSIZE: usize = 1<<13;
+    let mut sin = [0.0; WT_BUFSIZE];
+    let mut tri = [0.0; WT_BUFSIZE];
+    let mut saw = [0.0; WT_BUFSIZE];
+    let mut sqr = [0.0; WT_BUFSIZE];
+    let sin = sin.sine();
+    let tri = tri.triangle();
+    let saw = saw.sawtooth();
+    let sqr = sqr.square();
+
+    let rate_modulator = WaveTable::<WT_BUFSIZE>::new(sin.borrow_mut(), 0.0);
 
     Self {
       params: Arc::new(HavregrynParams::default()),
       rate_modulator,
+      rate_wt_bufsize: WT_BUFSIZE,
+      sin: *sin,
+      tri: *tri,
+      saw: *saw,
+      sqr: *sqr,
       granulators,
       imp,
       dust
@@ -121,7 +141,7 @@ impl Default for HavregrynParams {
         12.0,
         FloatRange::Skewed { min: 0.2, max: 60.0, factor: 0.3 }
       )
-        .with_smoother(SmoothingStyle::Logarithmic(50.0))
+        .with_smoother(SmoothingStyle::Linear(20.0))
         .with_value_to_string(Arc::new(|f| { format!("{:.2}", f) }))
         .with_unit(" Hz"),
 
@@ -146,7 +166,7 @@ impl Default for HavregrynParams {
       trigger: FloatParam::new(
         "trigger interval", 
         1.0, 
-        FloatRange::Skewed { min: 0.03, max: 5.0, factor: 0.3 }
+        FloatRange::Skewed { min: 0.03, max: 5.0, factor: 0.46 }
       )
         .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
         .with_unit(" sec"),
@@ -222,6 +242,9 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     self.dust.set_samplerate(sr);
     self.granulators[0].set_samplerate(sr);
     self.granulators[1].set_samplerate(sr);
+
+    self.granulators[0].set_buffersize(4*sr as usize);
+    self.granulators[1].set_buffersize(4*sr as usize);
     self.rate_modulator.samplerate = sr;
     true
   }
@@ -238,7 +261,6 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     )
   }
 
-
   fn process(
     &mut self,
     buffer: &mut Buffer,
@@ -246,17 +268,12 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     _context: &mut impl ProcessContext<Self>,
   ) -> ProcessStatus {
     // Once per buffer
-    let trig = self.params.trigger.smoothed.next();
-    let random = self.params.random.value();
+
 
     for channel_samples in buffer.iter_samples() {
       // Once per frame
-      let pos  = self.params.position.smoothed.next();
-      let dur  = self.params.duration.smoothed.next();
-      let rate = self.params.rate.smoothed.next();
-      let jit  = self.params.jitter.smoothed.next() * rand::thread_rng().gen::<f32>();
-      let rmod = self.params.rate_mod_amount.smoothed.next();
-      let rfrq = self.params.rate_mod_freq.smoothed.next();
+      let random = self.params.random.value();
+      let trig = self.params.trigger.value();
 
 
       match self.params.resample.value() {
@@ -268,6 +285,14 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
           ()
         }
       } 
+    
+      // let modulator = match self.params.rate_mod_shape.value() {
+      //   ModShape::SINE =>   { todo!() },
+      //   ModShape::TRI =>    { todo!() },
+      //   ModShape::SAW =>    { todo!() },
+      //   ModShape::SQUARE => { todo!() },
+      //   ModShape::RANDOM => { rand::thread_rng().gen::<f32>() },
+      // };
 
       let trigger = match random {
         true => {
@@ -287,6 +312,13 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
           // passthru
           *sample = sig;
         } else {
+          let pos  = self.params.position.smoothed.next();
+          let dur  = self.params.duration.smoothed.next();
+          let rate = self.params.rate.smoothed.next();
+          let jit  = self.params.jitter.smoothed.next() * rand::thread_rng().gen::<f32>();
+          let rmod = self.params.rate_mod_amount.smoothed.next();
+          let rfrq = self.params.rate_mod_freq.smoothed.next();
+
           *sample = self.granulators[ch].play::<Linear, Linear>(
             pos,
             dur,
@@ -320,5 +352,5 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Vst3Plugin for Havregryn<NUMG
       &[Vst3SubCategory::Fx, Vst3SubCategory::Dynamics];
 }
 
-nih_export_clap!(Havregryn<32, {8*48000}>);
-nih_export_vst3!(Havregryn<32, {8*48000}>);
+nih_export_clap!(Havregryn<16, {4*48000}>);
+nih_export_vst3!(Havregryn<16, {4*48000}>);

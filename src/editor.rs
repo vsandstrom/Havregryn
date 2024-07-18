@@ -17,7 +17,7 @@ struct Data {
 impl Model for Data {}
 
 pub(crate) fn default_state() -> Arc<ViziaState> {
-  ViziaState::new(||(500, 360))
+  ViziaState::new(||(500, 400))
 }
 
 pub fn create(params: Arc<HavregrynParams>, editor_state: Arc<ViziaState>) -> Option<Box<dyn Editor>> {
@@ -66,6 +66,7 @@ fn build_gui(cx: &mut Context) {
         create_slider(cx, "jitter",   Data::params, LH, LW, SH, SW, |params| &params.jitter);
         create_slider(cx, "duration", Data::params, LH, LW, SH, SW, |params| &params.duration);
         create_slider(cx, "trigger",  Data::params, LH, LW, SH, SW, |params| &params.trigger);
+        VStack::new(cx, |cx| {Label::new(cx, "Lorem");});
 
       })
         .height(Percentage(90.0))
@@ -80,8 +81,7 @@ fn build_gui(cx: &mut Context) {
         create_slider(cx, "rate",       Data::params, LH, LW, SH, SW, |params| &params.rate);
         create_slider(cx, "mod freq",   Data::params, LH, LW, SH, SW, |params| &params.rate_mod_freq);
         create_slider(cx, "mod amount", Data::params, LH, LW, SH, SW, |params| &params.rate_mod_amount);
-        // create_slider(cx, "mod shape", Data::params, LH, SH, SW, |params| &params.rate_mod_shape);
-                                                    
+        create_slider(cx, "mod shape",  Data::params, LH, LW, SH, SW, |params| &params.rate_mod_shape);
         VStack::new(cx, |cx| {
           HStack::new(cx, |cx| {
             create_button(cx, "random", Data::params, BH, BW, |params| &params.random);
@@ -96,6 +96,7 @@ fn build_gui(cx: &mut Context) {
             .child_left(Stretch(1.0));
         })
           .width(Percentage(100.0));
+                                                    
 
       })
         .height(Percentage(90.0))
