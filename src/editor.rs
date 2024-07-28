@@ -1,8 +1,10 @@
-use std::borrow::BorrowMut;
 use std::sync::Arc;
 
 use nih_plug::editor::Editor;
 use nih_plug::params::Param;
+use nih_plug_vizia::widgets::GenericUi;
+use nih_plug_vizia::vizia::image::{open, DynamicImage, GenericImage, GenericImageView};
+use nih_plug_vizia::vizia::vg::Renderer;
 use nih_plug_vizia::widgets::{ParamButton, ParamButtonExt, ParamSlider};
 use nih_plug_vizia::{assets, create_vizia_editor, ViziaState, ViziaTheming};
 use nih_plug_vizia::vizia::prelude::*;
@@ -22,6 +24,7 @@ pub(crate) fn default_state() -> Arc<ViziaState> {
 
 pub fn create(params: Arc<HavregrynParams>, editor_state: Arc<ViziaState>) -> Option<Box<dyn Editor>> {
   create_vizia_editor(editor_state, ViziaTheming::Custom, move |cx, _| {
+    cx.add_stylesheet(include_style!("src/styles.css")).expect("failed to read stylesheet");
     assets::register_noto_sans_thin(cx);
     assets::register_noto_sans_light(cx);
 
@@ -31,7 +34,6 @@ pub fn create(params: Arc<HavregrynParams>, editor_state: Arc<ViziaState>) -> Op
 
     build_gui(cx);
   })
-
 }
 
 fn build_gui(cx: &mut Context) {
@@ -66,7 +68,9 @@ fn build_gui(cx: &mut Context) {
         create_slider(cx, "jitter",   Data::params, LH, LW, SH, SW, |params| &params.jitter);
         create_slider(cx, "duration", Data::params, LH, LW, SH, SW, |params| &params.duration);
         create_slider(cx, "trigger",  Data::params, LH, LW, SH, SW, |params| &params.trigger);
-        VStack::new(cx, |cx| {Label::new(cx, "Lorem");});
+        VStack::new(cx, |cx| {
+        });
+
       })
         .height(Percentage(90.0))
         .left(Pixels(42.0))
@@ -81,7 +85,7 @@ fn build_gui(cx: &mut Context) {
         create_slider(cx, "mod freq",   Data::params, LH, LW, SH, SW, |params| &params.rate_mod_freq);
         create_slider(cx, "mod amount", Data::params, LH, LW, SH, SW, |params| &params.rate_mod_amount);
         create_slider(cx, "mod shape",  Data::params, LH, LW, SH, SW, |params| &params.rate_mod_shape);
-        VStack::new(cx, |cx| {
+VStack::new(cx, |cx| {
           HStack::new(cx, |cx| {
             create_button(cx, "random", Data::params, BH, BW, |params| &params.random);
             create_button(cx, "sample", Data::params, BH, BW, |params| &params.resample);
@@ -114,6 +118,7 @@ fn build_gui(cx: &mut Context) {
   });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn create_slider<L, Params, P, FMap>(
   cx: &mut Context,
   name: &str,
@@ -149,18 +154,24 @@ where
     P: Param + 'static,
     FMap: Fn(&Params) ->  &P + Copy + 'static
 {
-  if name == "sample" {
-    ParamButton::new(cx, params, f).with_label(name).width(width).height(height)
-      .on_press(|e| {
-        if !e.is_checked() {
-          e.set_background_color(Color::rgb(0xff, 0x25, 0x5c)) // Lingonberry
-        } else {
-          // e.set_background_color(Color::rgb(0x80, 0x0, 0x20)) // Burgundy
-          e.set_background_color(Color::default()) // Lingonberry
-        }
-      });
-  } else {
-    ParamButton::new(cx, params, f).with_label(name).width(width).height(height);
-  }
+  // if name == "sample" {
+    ParamButton::new(cx, params, f)
+      .with_label(name)
+      .width(width)
+      .height(height)
+      .class(name);
+      // .on_press(|e| {
+      //   if !e.is_checked() {
+      //     e.set_checked(true);
+      //     // e.set_background_color(Color::rgb(0xff, 0x25, 0x5c)) // Lingonberry
+      //   } else {
+      //     // e.set_background_color(Color::rgb(0x80, 0x0, 0x20)) // Burgundy
+      //     e.set_checked(false);
+      //     // e.set_background_color(Color::default()) // Lingonberry
+      //   }
+      // });
+  // } else {
+  //   ParamButton::new(cx, params, f).with_label(name).width(width).height(height);
+  // }
 }
 

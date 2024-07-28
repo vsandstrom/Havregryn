@@ -1,0 +1,33 @@
+.sample:checked {
+  background-color: #fafafa;
+  color: #0a0a0a;
+}
+
+.random:checked {
+  background-color: #d0d0d0;
+  color: #0a0a0a;
+}
+
+.random {
+  background-color: #fafafa;
+  color: #0a0a0a;
+}
+
+.random:hover {
+  background-color: #d0d0d0;
+  color: #0a0a0a;
+  opacity: 0.7;
+}
+
+.sample:hover {
+  background-color: #ff255c;
+  color: #fafafa;
+  opacity: 0.6;
+}
+
+
+.sample {
+  background-color: #ff255c;
+  opacity: 0.8;
+  color: #fafafa;
+}

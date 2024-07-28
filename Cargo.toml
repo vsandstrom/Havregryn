@@ -18,7 +18,7 @@ crate-type = ["cdylib"]
 # thread in debug builds.
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug", features = ["assert_process_allocs", "standalone"] }
 nih_plug_vizia = { git = "https://github.com/robbert-vdh/nih-plug" }
-rust_dsp = { git = "https://github.com/vsandstrom/rust_dsp", branch = "dev" }
+rust_dsp = { git = "https://github.com/vsandstrom/rust_dsp", branch = "dev", version = "0.1.1" }
 atomic_float = "0.1"
 rand = "0.8.5"
 # Uncomment the below line to disable the on-by-default VST3 feature to remove

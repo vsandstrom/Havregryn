@@ -1,4 +1,4 @@
-use rust_dsp::interpolation::Interpolation;
+use rust_dsp::interpolation::{Interpolation, Linear};
 pub struct MultiTable {
   position: f32,
   samplerate: f32,
@@ -16,7 +16,7 @@ impl MultiTable {
 
 
   #[inline]
-  pub fn play<const N: usize, TableInterpolation: Interpolation>(&mut self, table: &[f32; N], frequency: f32, phase: f32) -> f32 {
+  pub fn play<const N: usize>(&mut self, table: &[f32; N], frequency: f32, phase: f32) -> f32 {
     if frequency > self.samplerate * 0.5 { return 0.0 }
     let len = N as f32;
 
@@ -24,7 +24,7 @@ impl MultiTable {
     while self.position > len {
       self.position -= len;
     }
-    TableInterpolation::interpolate(self.position, table, N)
+    Linear::interpolate(self.position, table, N)
   }
 
   #[inline]

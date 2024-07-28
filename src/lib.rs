@@ -1,6 +1,8 @@
-use std::{borrow::BorrowMut, sync::{
-  atomic::AtomicBool, 
-  Arc}};
+mod editor;
+mod multitable;
+mod random;
+
+use std::sync::{atomic::AtomicBool, Arc};
 use rand::Rng;
 
 use nih_plug::prelude::*;
@@ -10,37 +12,39 @@ use rust_dsp::{
   grains::Granulator,
   envelope::EnvType,
   waveshape::traits::Waveshape,
-  wavetable::owned::WaveTable,
   interpolation::Linear,
   trig::{Dust, Impulse, Trigger},
 };
 
-mod editor;
-mod multitable;
+
 
 use crate::multitable::MultiTable;
+use crate::random::Random;
+
+const SIZE: usize = 1<<13;
 
 struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   params: Arc<HavregrynParams>,
   granulators: [Granulator<NUMGRAINS, BUFSIZE>; 2],
   rate_modulator: MultiTable,
-  // rate_modulator: WaveTable<{1<<13}>,
-  rate_wt_bufsize: usize,
-  sin: [f32; 1<<13],
-  tri: [f32; 1<<13],
-  saw: [f32; 1<<13],
-  sqr: [f32; 1<<13],
+  rate_random_mod: Random,
+  sin: [f32; SIZE],
+  tri: [f32; SIZE],
+  saw: [f32; SIZE],
+  sqr: [f32; SIZE],
   imp: Impulse,
-  dust: Dust
+  dust: Dust,
+  start_bool: bool,
+  sr_recip: f32
 }
 
 #[derive(Enum, PartialEq)]
 enum ModShape {
-  SINE,
-  TRI,
-  SAW,
-  SQUARE,
-  RANDOM
+  Sine,
+  Tri,
+  Saw,
+  Square,
+  // RANDOM
 }
 
 #[derive(Params)]
@@ -75,29 +79,25 @@ struct HavregrynParams {
   #[id = "resample"]
   pub resample: BoolParam,
 
-  #[allow(unused)]
-  pub resample_bool: Arc<AtomicBool>
+  pub color: AtomicBool,
 }
 
-impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAINS, BUFSIZE> {
-  fn default() -> Self {
-    let env_shape: EnvType = EnvType::Vector([0.0;512].hanning().to_vec());
-    const WT_BUFSIZE: usize = 1<<13;
-    let mut sin = [0.0; WT_BUFSIZE];
-    let sin = sin.sine();
-
+impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAINS, BUFSIZE> { fn default() -> Self { 
+  let env_shape: EnvType = EnvType::Vector([0.0;512].hanning().to_vec());
     Self {
       params: Arc::new(HavregrynParams::default()),
-      rate_wt_bufsize: WT_BUFSIZE,
-      sin: *sin,
-      tri: *[0.0; WT_BUFSIZE].triangle(),
-      saw: *[0.0; WT_BUFSIZE].sawtooth(),
-      sqr: *[0.0; WT_BUFSIZE].square(),
+      sin: *[0.0; SIZE].sine(),
+      tri: *[0.0; SIZE].triangle(),
+      saw: *[0.0; SIZE].sawtooth(),
+      sqr: *[0.0; SIZE].square(),
       // rate_modulator: WaveTable::<WT_BUFSIZE>::new(sin.borrow_mut(), 0.0),
       rate_modulator: MultiTable::new(),
+      rate_random_mod: Random::new(0.0),
       granulators: [Granulator::new(&env_shape, 0.0), Granulator::new(&env_shape, 0.0)],
       imp: Impulse::new(0.0),
       dust: Dust::new(0.0),
+      sr_recip: 0.0,
+      start_bool: true,
     }
   }
 }
@@ -132,7 +132,7 @@ impl Default for HavregrynParams {
 
       trigger: FloatParam::new(
         "trigger interval", 
-        1.0, 
+        0.3, 
         FloatRange::Skewed { min: 0.03, max: 2.5, factor: 0.8 }
       )
         .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
@@ -162,7 +162,7 @@ impl Default for HavregrynParams {
         .with_smoother(SmoothingStyle::Logarithmic(50.0))
         .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
 
-      rate_mod_shape: EnumParam::new("mod shape", ModShape::SINE),
+      rate_mod_shape: EnumParam::new("mod shape", ModShape::Sine),
 
       resample: BoolParam::new(
         "sample", 
@@ -174,7 +174,7 @@ impl Default for HavregrynParams {
         false
       ),
 
-      resample_bool: Arc::new(AtomicBool::new(false))
+      color: AtomicBool::new(false)
     }
   }
 }
@@ -239,6 +239,8 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     // self.granulators[0].set_buffersize((4.0 * sr) as usize);
     // self.granulators[1].set_buffersize((4.0 * sr) as usize);
     self.rate_modulator.set_samplerate(sr);
+    self.rate_random_mod.set_samplerate(sr);
+    self.sr_recip = 1.0 / sr;
     true
   }
 
@@ -271,14 +273,14 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
 
       match self.params.resample.value() {
         true => {
-            self.granulators[0].reset_record();
-            self.granulators[1].reset_record();
+          self.start_bool = true;
+          self.granulators[0].reset_record();
+          self.granulators[1].reset_record();
         },
-        false => {
-          ()
-        }
+        false => { }
       } 
     
+      if !self.start_bool { for ch in channel_samples { *ch = 0.0; } continue; }
 
       let trigger = match random {
         true => {
@@ -306,11 +308,11 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
           let rfrq = self.params.rate_mod_freq.smoothed.next();
 
           let modulator = match self.params.rate_mod_shape.value() {
-            ModShape::SINE =>   { self.rate_modulator.play(&self.sin, rfrq, 0.0) },
-            ModShape::TRI =>    { self.rate_modulator.play(&self.tri, rfrq, 0.0) },
-            ModShape::SAW =>    { self.rate_modulator.play(&self.saw, rfrq, 0.0) },
-            ModShape::SQUARE => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
-            ModShape::RANDOM => { rand::thread_rng().gen::<f32>() },
+            ModShape::Sine =>   { self.rate_modulator.play(&self.sin, rfrq, 0.0) },
+            ModShape::Tri =>    { self.rate_modulator.play(&self.tri, rfrq, 0.0) },
+            ModShape::Saw =>    { self.rate_modulator.play(&self.saw, rfrq, 0.0) },
+            ModShape::Square => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
+            // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
           };
 
           *sample = self.granulators[ch].play::<Linear, Linear>(
@@ -347,5 +349,5 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Vst3Plugin for Havregryn<NUMG
       &[Vst3SubCategory::Fx, Vst3SubCategory::Dynamics];
 }
 
-nih_export_clap!(Havregryn<16, {4*48000}>);
-nih_export_vst3!(Havregryn<16, {4*48000}>);
+// nih_export_clap!(Havregryn<16, {8*48000}>);
+nih_export_vst3!(Havregryn<16, {8*48000}>);
