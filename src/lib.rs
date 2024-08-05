@@ -6,7 +6,10 @@ use std::sync::{atomic::AtomicBool, Arc};
 use rand::Rng;
 
 use nih_plug::prelude::*;
-use nih_plug_vizia::ViziaState;
+use nih_plug_vizia::{
+  ViziaState,
+  vizia::vg::Color
+};
 
 use rust_dsp::{
   grains::Granulator,
@@ -96,6 +99,8 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
       granulators: [Granulator::new(&env_shape, 0.0), Granulator::new(&env_shape, 0.0)],
       imp: Impulse::new(0.0),
       dust: Dust::new(0.0),
+      // sample_color_active: Color::rgba(0xff, 0x25, 0x5c, 0x00),
+      // sample_color_deactive: Color::rgba(0xfa, 0xfa, 0xfa, 0x00),
       sr_recip: 0.0,
       start_bool: true,
     }
@@ -263,14 +268,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     _context: &mut impl ProcessContext<Self>,
   ) -> ProcessStatus {
     // Once per buffer
-
-
-    for channel_samples in buffer.iter_samples() {
-      // Once per frame
-      let random = self.params.random.value();
-      let trig = self.params.trigger.value();
-
-
+    for frame in buffer.iter_samples() {
       match self.params.resample.value() {
         true => {
           self.start_bool = true;
@@ -280,53 +278,53 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         false => { }
       } 
     
-      if !self.start_bool { for ch in channel_samples { *ch = 0.0; } continue; }
+      if self.start_bool {
+        // Once per frame
+        let random = self.params.random.value();
+        let trig = self.params.trigger.value();
+        let pos  = self.params.position.smoothed.next();
+        let dur  = self.params.duration.smoothed.next();
+        let rate = self.params.rate.smoothed.next();
+        let rmod = self.params.rate_mod_amount.smoothed.next();
+        let rfrq = self.params.rate_mod_freq.smoothed.next();
+        let jit  = self.params.jitter.smoothed.next() * rand::thread_rng().gen::<f32>();
 
-      let trigger = match random {
-        true => {
-          // keep the triggers going even when unused
-          let _ = self.imp.play(trig);
-          self.dust.play(trig)
-        },
-        false => {
-          let _ = self.dust.play(trig);
-          self.imp.play(trig)
-        }
-      };
+        let trigger = match random {
+          true => {
+            // keep the triggers going even when unused
+            let _ = self.imp.play(trig);
+            self.dust.play(trig)
+          },
+          false => {
+            let _ = self.dust.play(trig);
+            self.imp.play(trig)
+          }
+        };
 
-      for (ch, sample) in channel_samples.into_iter().enumerate() {
-        // Once per channel/sample
-        if let Some(sig) = self.granulators[ch].record(*sample) {
-          // passthru
-          *sample = sig;
-        } else {
-          let pos  = self.params.position.smoothed.next();
-          let dur  = self.params.duration.smoothed.next();
-          let rate = self.params.rate.smoothed.next();
-          let jit  = self.params.jitter.smoothed.next() * rand::thread_rng().gen::<f32>();
-          let rmod = self.params.rate_mod_amount.smoothed.next();
-          let rfrq = self.params.rate_mod_freq.smoothed.next();
+        for (ch, sample) in frame.into_iter().enumerate() {
+          // Once per channel/sample
+          // granulator record buffer returns None when the buffer is full.
+          if self.granulators[ch].record(*sample).is_none() {
+            let modulator = match self.params.rate_mod_shape.value() {
+              ModShape::Sine =>   { self.rate_modulator.play(&self.sin, rfrq, 0.0) },
+              ModShape::Tri =>    { self.rate_modulator.play(&self.tri, rfrq, 0.0) },
+              ModShape::Saw =>    { self.rate_modulator.play(&self.saw, rfrq, 0.0) },
+              ModShape::Square => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
+              // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
+            };
 
-          let modulator = match self.params.rate_mod_shape.value() {
-            ModShape::Sine =>   { self.rate_modulator.play(&self.sin, rfrq, 0.0) },
-            ModShape::Tri =>    { self.rate_modulator.play(&self.tri, rfrq, 0.0) },
-            ModShape::Saw =>    { self.rate_modulator.play(&self.saw, rfrq, 0.0) },
-            ModShape::Square => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
-            // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
-          };
-
-          *sample = self.granulators[ch].play::<Linear, Linear>(
-            pos,
-            dur,
-            // rate + (self.rate_modulator.play::<Linear>(rfrq, 0.0) * rmod),
-            rate + (modulator * rmod),
-            jit,
-            trigger
-          );
+            *sample = self.granulators[ch].play::<Linear, Linear>(
+              pos,
+              dur,
+              // rate + (self.rate_modulator.play::<Linear>(rfrq, 0.0) * rmod),
+              rate + (modulator * rmod),
+              jit,
+              trigger
+            );
+          } 
         }
       }
     }
-
     ProcessStatus::Normal
   }
 }
