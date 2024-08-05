@@ -3,16 +3,16 @@ mod multitable;
 mod random;
 
 use std::sync::{atomic::AtomicBool, Arc};
-use rand::Rng;
+use rand::{seq::index::sample, Rng};
 
 use nih_plug::prelude::*;
-use nih_plug_vizia::{
-  ViziaState,
-  vizia::vg::Color
-};
+use nih_plug_vizia::ViziaState;
 
 use rust_dsp::{
-  grains::Granulator,
+  grains::{
+    GrainTrait,
+    stereo::Granulator
+  },
   envelope::EnvType,
   waveshape::traits::Waveshape,
   interpolation::Linear,
@@ -28,7 +28,7 @@ const SIZE: usize = 1<<13;
 
 struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   params: Arc<HavregrynParams>,
-  granulators: [Granulator<NUMGRAINS, BUFSIZE>; 2],
+  granulator: Granulator<NUMGRAINS, BUFSIZE>,
   rate_modulator: MultiTable,
   rate_random_mod: Random,
   sin: [f32; SIZE],
@@ -67,6 +67,9 @@ struct HavregrynParams {
   pub jitter: FloatParam,
   #[id = "trigger"]
   pub trigger: FloatParam,
+  
+  #[id = "spread"]
+  pub spread: FloatParam,
 
   #[id = "rate"]
   pub rate: FloatParam,
@@ -89,14 +92,14 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
   let env_shape: EnvType = EnvType::Vector([0.0;512].hanning().to_vec());
     Self {
       params: Arc::new(HavregrynParams::default()),
-      sin: *[0.0; SIZE].sine(),
-      tri: *[0.0; SIZE].triangle(),
-      saw: *[0.0; SIZE].sawtooth(),
-      sqr: *[0.0; SIZE].square(),
+      sin: [0.0; SIZE].sine(),
+      tri: [0.0; SIZE].triangle(),
+      saw: [0.0; SIZE].sawtooth(),
+      sqr: [0.0; SIZE].square(),
       // rate_modulator: WaveTable::<WT_BUFSIZE>::new(sin.borrow_mut(), 0.0),
       rate_modulator: MultiTable::new(),
       rate_random_mod: Random::new(0.0),
-      granulators: [Granulator::new(&env_shape, 0.0), Granulator::new(&env_shape, 0.0)],
+      granulator: Granulator::new(&env_shape, 0.0),
       imp: Impulse::new(0.0),
       dust: Dust::new(0.0),
       // sample_color_active: Color::rgba(0xff, 0x25, 0x5c, 0x00),
@@ -142,6 +145,14 @@ impl Default for HavregrynParams {
       )
         .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) }))
         .with_unit(" sec"),
+      
+      spread: FloatParam::new(
+        "stereo spread", 
+        0.0, 
+        FloatRange::Linear { min: 0.0, max: 1.0 }
+      )
+        .with_smoother(SmoothingStyle::Linear(20.0))
+        .with_value_to_string(Arc::new(|i| { format!("{:.2}", i) })),
 
       rate: FloatParam::new(
         "speed",
@@ -238,8 +249,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     let sr = buffer_config.sample_rate;
     self.imp.set_samplerate(sr);
     self.dust.set_samplerate(sr);
-    self.granulators[0].set_samplerate(sr);
-    self.granulators[1].set_samplerate(sr);
+    self.granulator.set_samplerate(sr);
 
     // self.granulators[0].set_buffersize((4.0 * sr) as usize);
     // self.granulators[1].set_buffersize((4.0 * sr) as usize);
@@ -268,12 +278,11 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     _context: &mut impl ProcessContext<Self>,
   ) -> ProcessStatus {
     // Once per buffer
-    for frame in buffer.iter_samples() {
+    for mut frame in buffer.iter_samples() {
       match self.params.resample.value() {
         true => {
           self.start_bool = true;
-          self.granulators[0].reset_record();
-          self.granulators[1].reset_record();
+          self.granulator.reset_record();
         },
         false => { }
       } 
@@ -287,7 +296,8 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         let rate = self.params.rate.smoothed.next();
         let rmod = self.params.rate_mod_amount.smoothed.next();
         let rfrq = self.params.rate_mod_freq.smoothed.next();
-        let jit  = self.params.jitter.smoothed.next() * rand::thread_rng().gen::<f32>();
+        let mut jit  = self.params.jitter.smoothed.next();
+        let mut pan = self.params.spread.smoothed.next();
 
         let trigger = match random {
           true => {
@@ -301,27 +311,50 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
           }
         };
 
-        for (ch, sample) in frame.into_iter().enumerate() {
-          // Once per channel/sample
-          // granulator record buffer returns None when the buffer is full.
-          if self.granulators[ch].record(*sample).is_none() {
-            let modulator = match self.params.rate_mod_shape.value() {
-              ModShape::Sine =>   { self.rate_modulator.play(&self.sin, rfrq, 0.0) },
-              ModShape::Tri =>    { self.rate_modulator.play(&self.tri, rfrq, 0.0) },
-              ModShape::Saw =>    { self.rate_modulator.play(&self.saw, rfrq, 0.0) },
-              ModShape::Square => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
-              // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
-            };
+        if f32::abs(trigger - 1.0) < f32::EPSILON {
+          pan = rand::thread_rng().gen::<f32>();
+          jit *= rand::thread_rng().gen_range(-1.0..=1.0);
 
-            *sample = self.granulators[ch].play::<Linear, Linear>(
-              pos,
-              dur,
-              // rate + (self.rate_modulator.play::<Linear>(rfrq, 0.0) * rmod),
-              rate + (modulator * rmod),
-              jit,
-              trigger
+        }
+
+        // Mono sum of input
+        // since frame is already a product of an iterator, 
+        // this should be fine.
+        let mono: f32 = unsafe {
+          // (
+          *frame.get_unchecked_mut(0) 
+          // + *frame.get_unchecked_mut(1)
+          // ) * 0.5
+        };
+
+        // granulator record buffer returns None when the buffer is full.
+        if self.granulator.record(mono).is_none() {
+          let modulator = match self.params.rate_mod_shape.value() {
+            ModShape::Sine =>   { self.rate_modulator.play(&self.sin, rfrq, 0.0) },
+            ModShape::Tri =>    { self.rate_modulator.play(&self.tri, rfrq, 0.0) },
+            ModShape::Saw =>    { self.rate_modulator.play(&self.saw, rfrq, 0.0) },
+            ModShape::Square => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
+            // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
+          };
+
+          let out_frame = self.granulator.play::<Linear, Linear>(
+            pos,
+            dur,
+            // rate + (self.rate_modulator.play::<Linear>(rfrq, 0.0) * rmod),
+            rate + (modulator * rmod),
+            pan,
+            jit,
+            trigger
+          );
+
+          frame
+            .into_iter()
+            .zip(out_frame.iter())
+            .for_each(
+              |(sample, grain)| { 
+                *sample = *grain 
+              }
             );
-          } 
         }
       }
     }

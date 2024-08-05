@@ -1,5 +1,3 @@
-use nih_plug::params::Param;
-use nih_plug_vizia::widgets::{ParamButton, ParamButtonExt};
 use nih_plug_vizia::vizia::prelude::*;
 
 use crate::editor::Data;
@@ -21,8 +19,9 @@ pub fn left_col(cx: &mut Context) {
     create_slider(cx, "jitter",   Data::params, LH, LW, SH, SW, |params| &params.jitter);
     create_slider(cx, "duration", Data::params, LH, LW, SH, SW, |params| &params.duration);
     create_slider(cx, "trigger",  Data::params, LH, LW, SH, SW, |params| &params.trigger);
-    VStack::new(cx, |cx| {
-    });
+    create_slider(cx, "spread",   Data::params, LH, LW, SH, SW, |params| &params.spread);
+    // VStack::new(cx, |cx| {
+    // });
   })
     .height(Percentage(90.0))
     .left(Pixels(42.0))
@@ -75,8 +74,4 @@ pub fn right_col(cx: &mut Context) {
     .top(Pixels(25.0))
     .bottom(Pixels(18.0))
     .row_between(Pixels(6.0));
-
 }
-
-
-
