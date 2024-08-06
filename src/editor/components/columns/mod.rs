@@ -19,7 +19,7 @@ pub fn left_col(cx: &mut Context) {
     create_slider(cx, "jitter",   Data::params, LH, LW, SH, SW, |params| &params.jitter);
     create_slider(cx, "duration", Data::params, LH, LW, SH, SW, |params| &params.duration);
     create_slider(cx, "trigger",  Data::params, LH, LW, SH, SW, |params| &params.trigger);
-    create_slider(cx, "spread",   Data::params, LH, LW, SH, SW, |params| &params.spread);
+    create_slider(cx, "stereo spread",   Data::params, LH, LW, SH, SW, |params| &params.spread);
     // VStack::new(cx, |cx| {
     // });
   })
@@ -34,8 +34,8 @@ pub fn left_col(cx: &mut Context) {
 pub fn right_col(cx: &mut Context) {
   VStack::new(cx, |cx| {
     create_slider(cx, "rate",       Data::params, LH, LW, SH, SW, |params| &params.rate);
-    create_slider(cx, "mod freq",   Data::params, LH, LW, SH, SW, |params| &params.rate_mod_freq);
     create_slider(cx, "mod amount", Data::params, LH, LW, SH, SW, |params| &params.rate_mod_amount);
+    create_slider(cx, "mod freq",   Data::params, LH, LW, SH, SW, |params| &params.rate_mod_freq);
     create_slider(cx, "mod shape",  Data::params, LH, LW, SH, SW, |params| &params.rate_mod_shape);
   VStack::new(cx, |cx| {
       HStack::new(cx, |cx| {
@@ -57,15 +57,16 @@ pub fn right_col(cx: &mut Context) {
         );
       })
         .width(SW)
-        .height(Pixels(42.0))
+        .height(Pixels(48.0))
         .col_between(Percentage(10.0))
-        .top(Stretch(1.8))
-        .bottom(Stretch(1.0))
+        // .top(Pixels(15.0))
+        // .bottom(Pixels(23.0))
+        .child_top(Stretch(5.8))
+        .child_bottom(Stretch(1.0))
         .child_right(Stretch(1.0))
         .child_left(Stretch(1.0));
     })
       .width(Percentage(100.0));
-                                                
 
   })
     .height(Percentage(90.0))

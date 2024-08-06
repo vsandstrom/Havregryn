@@ -1,14 +1,10 @@
-
 use nih_plug_vizia::vizia::prelude::*;
 use super::columns::{left_col, right_col};
+
 pub fn body(cx: &mut Context) {
   HStack::new(cx, |cx| {
-    // Left column
     left_col(cx);
-    
-    // Right column
     right_col(cx)
-
   })
     .width(Percentage(100.0))
     .height(Percentage(80.0))

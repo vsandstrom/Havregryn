@@ -20,7 +20,7 @@ pub(crate) struct Data {
 impl Model for Data {}
 
 pub(crate) fn default_state() -> Arc<ViziaState> {
-  ViziaState::new(||(500, 400))
+  ViziaState::new(||(500, 440))
 }
 
 pub fn create(params: Arc<HavregrynParams>, editor_state: Arc<ViziaState>) -> Option<Box<dyn Editor>> {

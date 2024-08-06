@@ -312,8 +312,8 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         };
 
         if f32::abs(trigger - 1.0) < f32::EPSILON {
-          pan = rand::thread_rng().gen::<f32>();
-          jit *= rand::thread_rng().gen_range(-1.0..=1.0);
+          pan *= rand::thread_rng().gen_range(-1.0..=1.0);
+          jit *= rand::thread_rng().gen::<f32>();
 
         }
 
