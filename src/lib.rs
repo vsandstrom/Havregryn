@@ -9,14 +9,9 @@ use nih_plug::prelude::*;
 use nih_plug_vizia::ViziaState;
 
 use rust_dsp::{
-  grains::{
-    GrainTrait,
-    stereo::Granulator
-  },
-  envelope::EnvType,
-  waveshape::traits::Waveshape,
-  interpolation::Linear,
-  trig::{Dust, Impulse, Trigger},
+  envelope::EnvType, grains::{
+    stereo::Granulator, GrainTrait
+  }, interpolation::{Cubic, Linear}, trig::{Dust, Impulse, Trigger}, waveshape::traits::Waveshape
 };
 
 
@@ -47,7 +42,7 @@ enum ModShape {
   Tri,
   Saw,
   Square,
-  // RANDOM
+  RANDOM
 }
 
 #[derive(Params)]
@@ -321,10 +316,10 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         // since frame is already a product of an iterator, 
         // this should be fine.
         let mono: f32 = unsafe {
-          // (
+          (
           *frame.get_unchecked_mut(0) 
-          // + *frame.get_unchecked_mut(1)
-          // ) * 0.5
+          + *frame.get_unchecked_mut(1)
+          ) * 0.5
         };
 
         // granulator record buffer returns None when the buffer is full.
@@ -334,10 +329,10 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
             ModShape::Tri =>    { self.rate_modulator.play(&self.tri, rfrq, 0.0) },
             ModShape::Saw =>    { self.rate_modulator.play(&self.saw, rfrq, 0.0) },
             ModShape::Square => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
-            // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
+            ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
           };
 
-          let out_frame = self.granulator.play::<Linear, Linear>(
+          let out_frame = self.granulator.play::<Cubic, Cubic>(
             pos,
             dur,
             // rate + (self.rate_modulator.play::<Linear>(rfrq, 0.0) * rmod),
