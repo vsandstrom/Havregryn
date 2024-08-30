@@ -9,15 +9,20 @@ use nih_plug::prelude::*;
 use nih_plug_vizia::ViziaState;
 
 use rust_dsp::{
-  envelope::EnvType, grains::{
-    stereo::Granulator, GrainTrait
-  }, interpolation::{Cubic, Linear}, trig::{Dust, Impulse, Trigger}, waveshape::traits::Waveshape
+  grains::{
+    GrainTrait,
+    stereo::Granulator
+  },
+  envelope::EnvType,
+  waveshape::traits::Waveshape,
+  interpolation::Linear,
+  trig::{Dust, Impulse, Trigger},
 };
 
 
 
 use crate::multitable::MultiTable;
-// use crate::random::Random;
+use crate::random::Random;
 
 const SIZE: usize = 1<<13;
 
@@ -25,7 +30,7 @@ struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   params: Arc<HavregrynParams>,
   granulator: Granulator<NUMGRAINS, BUFSIZE>,
   rate_modulator: MultiTable,
-  // rate_random_mod: Random,
+  rate_random_mod: Random,
   sin: [f32; SIZE],
   tri: [f32; SIZE],
   saw: [f32; SIZE],
@@ -42,7 +47,7 @@ enum ModShape {
   Tri,
   Saw,
   Square,
-  // Random
+  // RANDOM
 }
 
 #[derive(Params)]
@@ -93,7 +98,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
       sqr: [0.0; SIZE].square(),
       // rate_modulator: WaveTable::<WT_BUFSIZE>::new(sin.borrow_mut(), 0.0),
       rate_modulator: MultiTable::new(),
-      // rate_random_mod: Random::new(0.0),
+      rate_random_mod: Random::new(0.0),
       granulator: Granulator::new(&env_shape, 0.0),
       imp: Impulse::new(0.0),
       dust: Dust::new(0.0),
@@ -214,7 +219,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
   }];
 
 
-  const MIDI_INPUT: MidiConfig = MidiConfig::Basic;
+  const MIDI_INPUT: MidiConfig = MidiConfig::None;
   const MIDI_OUTPUT: MidiConfig = MidiConfig::None;
 
   const SAMPLE_ACCURATE_AUTOMATION: bool = true;
@@ -270,7 +275,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     &mut self,
     buffer: &mut Buffer,
     _aux: &mut AuxiliaryBuffers,
-    ctx: &mut impl ProcessContext<Self>,
+    _context: &mut impl ProcessContext<Self>,
   ) -> ProcessStatus {
     // Once per buffer
     for mut frame in buffer.iter_samples() {
@@ -281,8 +286,6 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         },
         false => { }
       } 
-
-      ctx.next_event();
     
       if self.start_bool {
         // Once per frame
@@ -310,17 +313,18 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
 
         if f32::abs(trigger - 1.0) < f32::EPSILON {
           pan *= rand::thread_rng().gen_range(-1.0..=1.0);
-          jit *= rand::thread_rng().gen_range(-1.0..=1.0);
+          jit *= rand::thread_rng().gen::<f32>();
 
         }
 
         // Mono sum of input
         // since frame is already a product of an iterator, 
         // this should be fine.
-        let mono: f32 = unsafe {(
+        let mono: f32 = unsafe {
+          // (
           *frame.get_unchecked_mut(0) 
-          + *frame.get_unchecked_mut(1)
-        ) * 0.5 
+          // + *frame.get_unchecked_mut(1)
+          // ) * 0.5
         };
 
         // granulator record buffer returns None when the buffer is full.
@@ -330,10 +334,10 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
             ModShape::Tri =>    { self.rate_modulator.play(&self.tri, rfrq, 0.0) },
             ModShape::Saw =>    { self.rate_modulator.play(&self.saw, rfrq, 0.0) },
             ModShape::Square => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
-            // ModShape::Random => { self.rate_random_mod.play(0.2 * self.sr_recip) },
+            // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
           };
 
-          let out_frame = self.granulator.play::<Cubic, Cubic>(
+          let out_frame = self.granulator.play::<Linear, Linear>(
             pos,
             dur,
             // rate + (self.rate_modulator.play::<Linear>(rfrq, 0.0) * rmod),

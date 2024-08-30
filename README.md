@@ -2,18 +2,16 @@
 
 Havregryn is a granular delay and texture synthesizer. The name is swedish for grains of oats, from which you can make havregrynsgröt, oatmeal.
 
-<img width="612" alt="Skärmavbild 2024-08-30 kl  11 46 50" src="https://github.com/user-attachments/assets/4e71f5a8-1067-4ac5-9166-e7625be209a5">
+<img width="700" alt="Skärmavbild 2024-07-17 kl  16 25 01" src="https://github.com/user-attachments/assets/c5a7b58d-7ea3-4ea0-85ba-0316ec32b7c0">
 
 ### Controls
 - position<br>sets the position in the recorded buffer from where to start the next grain playback.
   
-- jitter<br>applies some random offset to the position value, setting the playback position ahead by a factor of $x * bufferlength$.
+- jitter<br>applies some random offset to the position value, setting the playback position ahead or behind by a factor of $x * bufferlength$.
   
 - duration<br>sets the duration of each grain in seconds.
   
 - trigger<br>sets the interval between each grain.
-
-- stereo spread<br>randomizes position of next grain in the stero field where $0.0$ is mono summed and $1.0$ is full spread between left and right.
   
 - rate<br>sets the playback rate of a grain, a value between $(-1.0, 1.0)$, which means at $0.0$ rate the playback will be silent, and at $-1.0$ the grains play in reverse.
   
