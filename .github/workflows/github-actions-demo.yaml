@@ -2,23 +2,6 @@ name: compile
 run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
 on: [push]
 jobs:
-  compilemac:
-    runs-on: macos-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      repository-projects: write
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: | 
-          cargo xtask bundle havregryn --release
-          cd /Users/runner/work/Havregryn/Havregryn/target/bundled/
-          zip -r Havregryn_macOS.vst3.zip Havregryn.vst3
-      - uses: ncipollo/release-action@v1
-        with:
-          artifacts: '/Users/runner/work/Havregryn/Havregryn/target/bundled/Havregryn_macOS.vst3.zip'
 
   compile_arm: 
     runs-on: ubuntu-latest
@@ -30,6 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: | 
+          rustup target add aarch64-apple-darwin
           cargo xtask bundle havregryn --target="aarch64-apple-darwin" --release
           cd /Users/runner/work/Havregryn/Havregryn/target/bundled/
           zip -r Havregryn_macOS_arm.vst3.zip Havregryn.vst3
