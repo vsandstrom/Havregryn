@@ -2,7 +2,7 @@ mod editor;
 mod multitable;
 mod random;
 
-use std::sync::Arc;
+use std::sync::Arc};
 use rand::Rng;
 
 use nih_plug::prelude::*;
@@ -18,8 +18,6 @@ use rust_dsp::{
   interpolation::Linear,
   trig::{Dust, Impulse, Trigger},
 };
-
-
 
 use crate::multitable::MultiTable;
 use crate::random::Random;
