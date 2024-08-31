@@ -3,7 +3,7 @@ mod multitable;
 mod random;
 
 use std::sync::{atomic::AtomicBool, Arc};
-use rand::{seq::index::sample, Rng};
+use rand::Rng;
 
 use nih_plug::prelude::*;
 use nih_plug_vizia::ViziaState;

@@ -1,5 +1,3 @@
-use std::thread::current;
-
 use rand::{self, Rng};
 use rust_dsp::trig::Trigger;
 
