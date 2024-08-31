@@ -4,6 +4,11 @@ on: [push]
 jobs:
   compilemac:
     runs-on: macos-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
