@@ -14,9 +14,9 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: | 
           export DIR="/Users/runner/work/Havregryn/Havregryn/target/bundled/"
+          brew install mingw-w64
           rustup target add x86_64-apple-darwin
           rustup target add aarch64-apple-darwin 
-          sudo apt install mingw-w64
           rustup target add x86_64-pc-windows-gnu
           cargo xtask bundle havregryn --target=x86_64-apple-darwin --release
           cd $DIR
