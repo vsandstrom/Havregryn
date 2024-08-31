@@ -13,12 +13,25 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: | 
+          export DIR="/Users/runner/work/Havregryn/Havregryn/target/bundled/"
           rustup target add x86_64-apple-darwin
           rustup target add aarch64-apple-darwin 
           rustup target add x86_64-pc-windows-gnu
           cargo xtask bundle havregryn --target=x86_64-apple-darwin --release
-          cd /Users/runner/work/Havregryn/Havregryn/target/bundled/
+          cd $DIR
           zip -r Havregryn_macOS_intel.vst3.zip Havregryn.vst3
+          cd -
+          
+          cargo xtask bundle havregryn --target=aarch64-apple-darwin --release
+          cd $DIR          
+          zip -r Havregryn_macOS_arm.vst3.zip Havregryn.vst3
+          cd -
+          
+          cargo xtask bundle havregryn --target=x86_64-pc-windows-gnu --release
+          cd $DIR          
+          zip -r Havregryn_Win.vst3.zip Havregryn.vst3
+          cd -
+          
       - uses: ncipollo/release-action@v1
         with:
-          artifacts: '/Users/runner/work/Havregryn/Havregryn/target/bundled/Havregryn_macOS_intel.vst3.zip' 
+          artifacts: '${DIR}Havregryn_macOS_intel.vst3.zip, ${DIR}Havregryn_macOS_intel.vst3.zip, ${DIR}Havregryn_macOS_intel.vst3.zip' 
