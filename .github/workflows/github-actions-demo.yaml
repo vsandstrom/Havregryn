@@ -15,7 +15,7 @@ jobs:
       - run: | 
           cargo xtask bundle havregryn --release
           cd /Users/runner/work/Havregryn/Havregryn/target/bundled/
-          zip -r Havregryn.vst3.zip Havregryn_MacOS.vst3
+          zip -r Havregryn_macOS.vst3.zip Havregryn.vst3
       - uses: ncipollo/release-action@v1
         with:
-          artifacts: '/Users/runner/work/Havregryn/Havregryn/target/bundled/Havregryn_MacOS.vst3.zip'
+          artifacts: '/Users/runner/work/Havregryn/Havregryn/target/bundled/Havregryn_macOS.vst3.zip'
