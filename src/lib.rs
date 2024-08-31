@@ -2,7 +2,7 @@ mod editor;
 mod multitable;
 mod random;
 
-use std::sync::Arc};
+use std::sync::Arc;
 use rand::Rng;
 
 use nih_plug::prelude::*;
