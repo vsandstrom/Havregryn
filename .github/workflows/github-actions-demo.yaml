@@ -7,5 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: sudo apt-get install xorg
-      - run: cargo xtask bundle havregryn --release
+      - uses: clechasseur/rs-cargo@v2
+        with:
+          command: xtask
+          args: bundle havregryn --release
