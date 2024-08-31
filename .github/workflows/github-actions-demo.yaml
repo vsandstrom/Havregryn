@@ -14,7 +14,8 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: | 
           cargo xtask bundle havregryn --release
-          zip -r havregryn.vst3.zip /Users/runner/work/Havregryn/Havregryn/target/bundled/Havregryn.vst3
+          cd /Users/runner/work/Havregryn/Havregryn/target/bundled/
+          zip -r Havregryn.vst3.zip Havregryn.vst3
       - uses: ncipollo/release-action@v1
         with:
-          artifacts: 'havregryn.vst3.zip'
+          artifacts: 'Havregryn.vst3.zip'
