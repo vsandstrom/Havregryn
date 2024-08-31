@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: export DISPLAY=:99 \
-          sudo Xvfb -ac :99 -screen 0 1280x1024x24 > /dev/null 2>&1 & mycommand
+          sudo Xvfb -ac :99 -screen 0 1280x1024x24 > /dev/null 2>&1
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: clechasseur/rs-cargo@v2
