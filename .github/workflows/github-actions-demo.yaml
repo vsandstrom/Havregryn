@@ -35,4 +35,4 @@ jobs:
           
       - uses: ncipollo/release-action@v1
         with:
-          artifacts: '${DIR}Havregryn_macOS_intel.vst3.zip, ${DIR}Havregryn_macOS_intel.vst3.zip, ${DIR}Havregryn_macOS_intel.vst3.zip' 
+          artifacts: '/Users/runner/work/Havregryn/Havregryn/target/bundled/Havregryn_macOS_intel.vst3.zip, /Users/runner/work/Havregryn/Havregryn/target/bundled/Havregryn_macOS_intel.vst3.zip, /Users/runner/work/Havregryn/Havregryn/target/bundled/Havregryn_macOS_intel.vst3.zip' 
