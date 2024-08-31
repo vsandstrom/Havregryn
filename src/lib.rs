@@ -85,7 +85,8 @@ struct HavregrynParams {
   #[id = "resample"]
   pub resample: BoolParam,
 
-  pub color: AtomicBool,
+  // #[allow(unused)]
+  // pub color: AtomicBool,
 }
 
 impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAINS, BUFSIZE> { fn default() -> Self { 
@@ -190,7 +191,7 @@ impl Default for HavregrynParams {
         false
       ),
 
-      color: AtomicBool::new(false)
+      // color: AtomicBool::new(false)
     }
   }
 }

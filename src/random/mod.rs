@@ -51,7 +51,7 @@ mod tests {
   
   #[test]
   fn poll() {
-    let rnd = Random::new(48000.0);
+    let _rnd = Random::new(48000.0);
 
     
   }
