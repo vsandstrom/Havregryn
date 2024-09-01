@@ -1,0 +1,48 @@
+name: compile
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+on: 
+  push:
+    tags:
+      - v*
+jobs:
+  compilemac:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      
+      - name: install dependencies and set paths
+        run: | 
+          export DIR="/Users/runner/work/Havregryn/Havregryn/target/bundled/"
+          brew install mingw-w64
+
+      - name: install rust toolchains
+        run: | 
+          rustup target add x86_64-apple-darwin
+          rustup target add aarch64-apple-darwin 
+          rustup target add x86_64-pc-windows-gnu
+
+      - name: compile intel mac and zip
+        run: |
+          cargo xtask bundle havregryn --target=x86_64-apple-darwin --release
+          zip -r Havregryn_macOS_intel.vst3.zip ${DIR}Havregryn.vst3
+
+      - name: compile arm mac and zip
+        run: |
+          cargo xtask bundle havregryn --target=aarch64-apple-darwin --release       
+          zip -r Havregryn_macOS_arm.vst3.zip ${DIR}Havregryn.vst3
+
+      - name: compile windows and zip
+        run: | 
+          cargo xtask bundle havregryn --target=x86_64-pc-windows-gnu --release       
+          zip -r Havregryn_Win.vst3.zip ${DIR}Havregryn.vst3
+
+      - name: create release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: 'Havregryn_macOS_intel.vst3.zip, Havregryn_macOS_arm.vst3.zip, Havregryn_Win.vst3.zip' 
