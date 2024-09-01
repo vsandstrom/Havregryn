@@ -30,19 +30,25 @@ jobs:
       - name: compile intel mac and zip
         run: |
           cargo xtask bundle havregryn --target=x86_64-apple-darwin --release
-          zip -r Havregryn_macOS_intel.vst3.zip ${DIR}Havregryn.vst3
+          cd ${DIR}
+          zip -r Havregryn_macOS_intel.vst3.zip Havregryn.vst3
+          cd -
 
       - name: compile arm mac and zip
         run: |
-          cargo xtask bundle havregryn --target=aarch64-apple-darwin --release       
-          zip -r Havregryn_macOS_arm.vst3.zip ${DIR}Havregryn.vst3
+          cargo xtask bundle havregryn --target=aarch64-apple-darwin --release    
+          cd ${DIR}   
+          zip -r Havregryn_macOS_arm.vst3.zip Havregryn.vst3
+          cd -
 
       - name: compile windows and zip
         run: | 
-          cargo xtask bundle havregryn --target=x86_64-pc-windows-gnu --release       
-          zip -r Havregryn_Win.vst3.zip ${DIR}Havregryn.vst3
+          cargo xtask bundle havregryn --target=x86_64-pc-windows-gnu --release
+          cd ${DIR}       
+          zip -r Havregryn_Win.vst3.zip Havregryn.vst3
+          cd -
 
       - name: create release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: 'Havregryn_macOS_intel.vst3.zip, Havregryn_macOS_arm.vst3.zip, Havregryn_Win.vst3.zip' 
+          artifacts: '/Users/runner/work/Havregryn/Havregryn/target/bundled/Havregryn_macOS_intel.vst3.zip, /Users/runner/work/Havregryn/Havregryn/target/bundled/Havregryn_macOS_arm.vst3.zip, /Users/runner/work/Havregryn/Havregryn/target/bundled/Havregryn_Win.vst3.zip' 
