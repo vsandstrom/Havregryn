@@ -30,21 +30,21 @@ jobs:
       - name: compile intel mac and zip
         run: |
           cargo xtask bundle havregryn --target=x86_64-apple-darwin --release
-          cd ${DIR}
+          cd $DIR
           zip -r Havregryn_macOS_intel.vst3.zip Havregryn.vst3
           cd -
 
       - name: compile arm mac and zip
         run: |
           cargo xtask bundle havregryn --target=aarch64-apple-darwin --release    
-          cd ${DIR}   
+          cd $DIR
           zip -r Havregryn_macOS_arm.vst3.zip Havregryn.vst3
           cd -
 
       - name: compile windows and zip
         run: | 
           cargo xtask bundle havregryn --target=x86_64-pc-windows-gnu --release
-          cd ${DIR}       
+          cd $DIR       
           zip -r Havregryn_Win.vst3.zip Havregryn.vst3
           cd -
 
