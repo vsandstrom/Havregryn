@@ -23,6 +23,7 @@ jobs:
 
       - name: install rust toolchains
         run: | 
+          echo $DIR
           rustup target add x86_64-apple-darwin
           rustup target add aarch64-apple-darwin 
           rustup target add x86_64-pc-windows-gnu
@@ -30,7 +31,6 @@ jobs:
       - name: compile intel mac and zip
         run: |
           cargo xtask bundle havregryn --target=x86_64-apple-darwin --release
-          echo "this is the dir: $DIR"
           cd $DIR
           zip -r Havregryn_macOS_intel.vst3.zip Havregryn.vst3
           cd -
