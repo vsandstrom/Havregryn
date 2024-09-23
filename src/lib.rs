@@ -1,6 +1,5 @@
 mod editor;
 mod multitable;
-mod random;
 
 use std::sync::Arc;
 use rand::Rng;
@@ -17,10 +16,11 @@ use rust_dsp::{
   waveshape::traits::Waveshape,
   interpolation::Linear,
   trig::{Dust, Impulse, Trigger},
+  // noise::Noise
 };
 
 use crate::multitable::MultiTable;
-use crate::random::Random;
+// use crate::random::Random;
 
 const SIZE: usize = 1<<13;
 
@@ -28,7 +28,7 @@ struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   params: Arc<HavregrynParams>,
   granulator: Granulator<NUMGRAINS, BUFSIZE>,
   rate_modulator: MultiTable,
-  rate_random_mod: Random,
+  // rate_random_mod: Noise,
   sin: [f32; SIZE],
   tri: [f32; SIZE],
   saw: [f32; SIZE],
@@ -97,7 +97,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
       sqr: [0.0; SIZE].square(),
       // rate_modulator: WaveTable::<WT_BUFSIZE>::new(sin.borrow_mut(), 0.0),
       rate_modulator: MultiTable::new(),
-      rate_random_mod: Random::new(0.0),
+      // rate_random_mod: Noise::new(0.0),
       granulator: Granulator::new(&env_shape, 0.0),
       imp: Impulse::new(0.0),
       dust: Dust::new(0.0),
@@ -253,7 +253,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     // self.granulators[0].set_buffersize((4.0 * sr) as usize);
     // self.granulators[1].set_buffersize((4.0 * sr) as usize);
     self.rate_modulator.set_samplerate(sr);
-    self.rate_random_mod.set_samplerate(sr);
+    // self.rate_random_mod.set_samplerate(sr);
     self.sr_recip = 1.0 / sr;
     true
   }
