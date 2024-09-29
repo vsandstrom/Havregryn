@@ -1,11 +1,16 @@
 mod editor;
 mod multitable;
 
-use std::sync::Arc;
+use std::{
+    collections::HashSet,
+    sync::{
+    Arc
+  }
+};
 use rand::Rng;
 
 use nih_plug::prelude::*;
-use nih_plug_vizia::ViziaState;
+use nih_plug_vizia::{vizia::events, ViziaState};
 
 use rust_dsp::{
   grains::{
@@ -16,27 +21,39 @@ use rust_dsp::{
   waveshape::traits::Waveshape,
   interpolation::Linear,
   trig::{Dust, Impulse, Trigger},
-  // noise::Noise
+  noise::Noise
 };
+
+/* 
+ *
+ *      TÄNK ÖVER HASHMAPPEN!!!!!!!!!!
+ *
+ *
+ *
+ *
+ * */
 
 use crate::multitable::MultiTable;
 // use crate::random::Random;
 
 const SIZE: usize = 1<<13;
+const MIDI: usize = 1<<7;
 
 struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
-  params: Arc<HavregrynParams>,
-  granulator: Granulator<NUMGRAINS, BUFSIZE>,
-  rate_modulator: MultiTable,
-  // rate_random_mod: Noise,
-  sin: [f32; SIZE],
-  tri: [f32; SIZE],
-  saw: [f32; SIZE],
-  sqr: [f32; SIZE],
-  imp: Impulse,
-  dust: Dust,
-  start_bool: bool,
-  sr_recip: f32
+  params:          Arc<HavregrynParams>,
+  granulator:      Granulator<NUMGRAINS, BUFSIZE>,
+  rate_modulator:  MultiTable,
+  rate_random_mod: Noise,
+  sin:             [f32; SIZE],
+  tri:             [f32; SIZE],
+  saw:             [f32; SIZE],
+  sqr:             [f32; SIZE],
+  imp:             Impulse,
+  dust:            Dust,
+  start_bool:      bool,
+  sr_recip:        f32,
+  pitches:         HashSet<u8>,
+  midi_rates:      [f32; 128]
 }
 
 #[derive(Enum, PartialEq)]
@@ -96,15 +113,17 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
       saw: [0.0; SIZE].sawtooth(),
       sqr: [0.0; SIZE].square(),
       // rate_modulator: WaveTable::<WT_BUFSIZE>::new(sin.borrow_mut(), 0.0),
-      rate_modulator: MultiTable::new(),
-      // rate_random_mod: Noise::new(0.0),
-      granulator: Granulator::new(&env_shape, 0.0),
-      imp: Impulse::new(0.0),
-      dust: Dust::new(0.0),
+      rate_modulator:  MultiTable::new(),
+      rate_random_mod: Noise::new(0.0),
+      granulator:      Granulator::new(&env_shape, 0.0),
+      imp:             Impulse::new(0.0),
+      dust:            Dust::new(0.0),
       // sample_color_active: Color::rgba(0xff, 0x25, 0x5c, 0x00),
       // sample_color_deactive: Color::rgba(0xfa, 0xfa, 0xfa, 0x00),
-      sr_recip: 0.0,
-      start_bool: true,
+      sr_recip:        0.0,
+      start_bool:      true,
+      pitches:         HashSet::new(),
+      midi_rates:      [0.0; 128] 
     }
   }
 }
@@ -253,8 +272,13 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     // self.granulators[0].set_buffersize((4.0 * sr) as usize);
     // self.granulators[1].set_buffersize((4.0 * sr) as usize);
     self.rate_modulator.set_samplerate(sr);
-    // self.rate_random_mod.set_samplerate(sr);
+    self.rate_random_mod.set_samplerate(sr);
     self.sr_recip = 1.0 / sr;
+
+    // initialize midi lookup table
+    for (i, note) in self.midi_rates.iter_mut().enumerate() {
+      *note = f32::powf(2.0, (i as f32 - 36.0) / 12.0);
+    }
     true
   }
 
@@ -274,10 +298,12 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     &mut self,
     buffer: &mut Buffer,
     _aux: &mut AuxiliaryBuffers,
-    _context: &mut impl ProcessContext<Self>,
+    context: &mut impl ProcessContext<Self>,
   ) -> ProcessStatus {
+
     // Once per buffer
-    for mut frame in buffer.iter_samples() {
+    for (sample_id, mut frame) in buffer.iter_samples().enumerate() {
+
       match self.params.resample.value() {
         true => {
           self.start_bool = true;
@@ -285,6 +311,29 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         },
         false => { }
       } 
+
+      while let Some(event) = context.next_event() {
+        if event.timing() != sample_id as u32 {
+          break;
+        }
+        match event {
+          // NoteEvent::NoteOn { note, .. } => {
+          //   // self.pitches.insert(note);
+          //   todo!()
+          // },
+          // NoteEvent::NoteOff { note, .. } => {
+          //   // if let false = self.pitches.remove(&note) {
+          //   //
+          //   // }
+          //   //
+          //   todo!()
+          // },
+          _ => {
+            todo!()
+          }
+        }
+      }
+      
     
       if self.start_bool {
         // Once per frame
@@ -292,7 +341,9 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         let trig = self.params.trigger.value();
         let pos  = self.params.position.smoothed.next();
         let dur  = self.params.duration.smoothed.next();
+
         let rate = self.params.rate.smoothed.next();
+
         let rmod = self.params.rate_mod_amount.smoothed.next();
         let rfrq = self.params.rate_mod_freq.smoothed.next();
         let mut jit  = self.params.jitter.smoothed.next();

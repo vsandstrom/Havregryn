@@ -32,7 +32,7 @@ pub fn create(params: Arc<HavregrynParams>, editor_state: Arc<ViziaState>) -> Op
     Data {
       params: params.clone(),
     }.build(cx);
-
+    
     build_gui(cx);
   })
 }
@@ -43,6 +43,4 @@ fn build_gui(cx: &mut Context) {
     body(cx);
   });
 }
-
-
 
