@@ -1,16 +1,11 @@
 mod editor;
 mod multitable;
 
-use std::{
-    collections::HashSet,
-    sync::{
-    Arc
-  }
-};
+use std::sync::Arc;
 use rand::Rng;
 
 use nih_plug::prelude::*;
-use nih_plug_vizia::{vizia::events, ViziaState};
+use nih_plug_vizia::ViziaState;
 
 use rust_dsp::{
   grains::{
@@ -21,7 +16,8 @@ use rust_dsp::{
   waveshape::traits::Waveshape,
   interpolation::Linear,
   trig::{Dust, Impulse, Trigger},
-  noise::Noise
+  noise::Noise,
+  dsp::math::mtor
 };
 
 /* 
@@ -52,8 +48,9 @@ struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   dust:            Dust,
   start_bool:      bool,
   sr_recip:        f32,
-  pitches:         HashSet<u8>,
-  midi_rates:      [f32; 128]
+  pitches:         Vec<usize>,
+  midi_rates:      [f32; MIDI],
+  midi_idx:        usize,
 }
 
 #[derive(Enum, PartialEq)]
@@ -104,8 +101,9 @@ struct HavregrynParams {
   // pub color: AtomicBool,
 }
 
-impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAINS, BUFSIZE> { fn default() -> Self { 
-  let env_shape: EnvType = EnvType::Vector([0.0;512].hanning().to_vec());
+impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAINS, BUFSIZE> { 
+  fn default() -> Self { 
+    let env_shape: EnvType = EnvType::Vector([0.0;512].hanning().to_vec());
     Self {
       params: Arc::new(HavregrynParams::default()),
       sin: [0.0; SIZE].sine(),
@@ -122,8 +120,9 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
       // sample_color_deactive: Color::rgba(0xfa, 0xfa, 0xfa, 0x00),
       sr_recip:        0.0,
       start_bool:      true,
-      pitches:         HashSet::new(),
-      midi_rates:      [0.0; 128] 
+      pitches:         vec!(),
+      midi_rates:      [0.0; MIDI],
+      midi_idx:        0
     }
   }
 }
@@ -237,7 +236,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
   }];
 
 
-  const MIDI_INPUT: MidiConfig = MidiConfig::None;
+  const MIDI_INPUT: MidiConfig = MidiConfig::MidiCCs;
   const MIDI_OUTPUT: MidiConfig = MidiConfig::None;
 
   const SAMPLE_ACCURATE_AUTOMATION: bool = true;
@@ -276,9 +275,12 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     self.sr_recip = 1.0 / sr;
 
     // initialize midi lookup table
-    for (i, note) in self.midi_rates.iter_mut().enumerate() {
-      *note = f32::powf(2.0, (i as f32 - 36.0) / 12.0);
+    for i in 0..MIDI {
+      self.midi_rates[i] = mtor(i as u8)
     }
+    // for (i, note) in self.midi_rates.iter_mut().enumerate() {
+    //   *note = f32::powf(2.0, (i as f32 - 36.0) / 12.0);
+    // }
     true
   }
 
@@ -302,7 +304,16 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
   ) -> ProcessStatus {
 
     // Once per buffer
-    for (sample_id, mut frame) in buffer.iter_samples().enumerate() {
+    for mut frame in buffer.iter_samples() {
+      // Mono sum of input
+      // since frame is already a product of an iterator, 
+      // this should be fine.
+      let mono: f32 = unsafe {
+        (
+        *frame.get_unchecked_mut(0) 
+        + *frame.get_unchecked_mut(1)
+        ) * 0.5
+      };
 
       match self.params.resample.value() {
         true => {
@@ -312,24 +323,22 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         false => { }
       } 
 
-      while let Some(event) = context.next_event() {
-        if event.timing() != sample_id as u32 {
-          break;
-        }
+      'midi_loop: while let Some(event) = context.next_event() {
+        // if event.timing() != sample_id as u32 {
+        //   break;
+        // }
         match event {
-          // NoteEvent::NoteOn { note, .. } => {
-          //   // self.pitches.insert(note);
-          //   todo!()
-          // },
-          // NoteEvent::NoteOff { note, .. } => {
-          //   // if let false = self.pitches.remove(&note) {
-          //   //
-          //   // }
-          //   //
-          //   todo!()
-          // },
+          NoteEvent::NoteOn {note, ..} => {
+            self.pitches.push(note as usize);
+          },
+          NoteEvent::NoteOff {note, ..} => {
+            // TODO - HOW TO HANDLE DOUBLE TRIGGS OF A NOTE?
+            if let Some(p) = self.pitches.iter().position(|p| *p == note as usize) {
+              self.pitches.remove(p);
+            }
+          },
           _ => {
-            todo!()
+            break 'midi_loop;
           }
         }
       }
@@ -337,19 +346,17 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     
       if self.start_bool {
         // Once per frame
-        let random = self.params.random.value();
         let trig = self.params.trigger.value();
-        let pos  = self.params.position.smoothed.next();
-        let dur  = self.params.duration.smoothed.next();
-
-        let rate = self.params.rate.smoothed.next();
+        let position  = self.params.position.smoothed.next();
+        let duration  = self.params.duration.smoothed.next();
 
         let rmod = self.params.rate_mod_amount.smoothed.next();
         let rfrq = self.params.rate_mod_freq.smoothed.next();
-        let mut jit  = self.params.jitter.smoothed.next();
+        let mut rate = self.params.rate.smoothed.next();
+        let mut jitter  = self.params.jitter.smoothed.next();
         let mut pan = self.params.spread.smoothed.next();
 
-        let trigger = match random {
+        let trigger = match self.params.random.value() {
           true => {
             // keep the triggers going even when unused
             let _ = self.imp.play(trig);
@@ -360,23 +367,8 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
             self.imp.play(trig)
           }
         };
-
-        if f32::abs(trigger - 1.0) < f32::EPSILON {
-          pan *= rand::thread_rng().gen_range(-1.0..=1.0);
-          jit *= rand::thread_rng().gen::<f32>();
-
-        }
-
-        // Mono sum of input
-        // since frame is already a product of an iterator, 
-        // this should be fine.
-        let mono: f32 = unsafe {
-          // (
-          *frame.get_unchecked_mut(0) 
-          // + *frame.get_unchecked_mut(1)
-          // ) * 0.5
-        };
-
+        
+        
         // granulator record buffer returns None when the buffer is full.
         if self.granulator.record(mono).is_none() {
           let modulator = match self.params.rate_mod_shape.value() {
@@ -387,24 +379,33 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
             // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
           };
 
-          let out_frame = self.granulator.play::<Linear, Linear>(
-            pos,
-            dur,
-            // rate + (self.rate_modulator.play::<Linear>(rfrq, 0.0) * rmod),
-            rate + (modulator * rmod),
-            pan,
-            jit,
-            trigger
-          );
+          if trigger >= 1.0 {
+            pan *= rand::thread_rng().gen_range(-1.0..=1.0);
+            jitter *= rand::thread_rng().gen::<f32>();
+            if !self.pitches.is_empty() {
+              self.midi_idx %= self.pitches.len();
+              rate *= self.midi_rates[self.pitches[self.midi_idx]] + (rmod * modulator);
+              self.midi_idx += 1;
+            } 
+            self.granulator.trigger_new(
+              position,
+              duration,
+              pan,
+              rate,
+              jitter
+            );
+          }
+
+          let out_frame = self.granulator.play::<Linear, Linear>();
 
           frame
             .into_iter()
             .zip(out_frame.iter())
             .for_each(
               |(sample, grain)| { 
-                *sample = *grain 
-              }
-            );
+              *sample = *grain 
+            }
+          );
         }
       }
     }
