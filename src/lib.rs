@@ -308,48 +308,38 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
       // Mono sum of input
       // since frame is already a product of an iterator, 
       // this should be fine.
-      let mono: f32 = unsafe {
-        (
+      let mono: f32 = unsafe {(
         *frame.get_unchecked_mut(0) 
         + *frame.get_unchecked_mut(1)
         ) * 0.5
       };
 
-      match self.params.resample.value() {
-        true => {
-          self.start_bool = true;
-          self.granulator.reset_record();
-        },
-        false => { }
-      } 
 
       'midi_loop: while let Some(event) = context.next_event() {
         // if event.timing() != sample_id as u32 {
         //   break;
         // }
         match event {
-          NoteEvent::NoteOn {note, ..} => {
-            self.pitches.push(note as usize);
-          },
+          NoteEvent::NoteOn {note, ..} => { self.pitches.push(note as usize); },
           NoteEvent::NoteOff {note, ..} => {
-            // TODO - HOW TO HANDLE DOUBLE TRIGGS OF A NOTE?
             if let Some(p) = self.pitches.iter().position(|p| *p == note as usize) {
               self.pitches.remove(p);
             }
           },
-          _ => {
-            break 'midi_loop;
-          }
+          _ => { break 'midi_loop; }
         }
       }
       
+      if self.params.resample.value() {
+        self.start_bool = true;
+        self.granulator.reset_record();
+      }
     
       if self.start_bool {
         // Once per frame
         let trig = self.params.trigger.value();
         let position  = self.params.position.smoothed.next();
         let duration  = self.params.duration.smoothed.next();
-
         let rmod = self.params.rate_mod_amount.smoothed.next();
         let rfrq = self.params.rate_mod_freq.smoothed.next();
         let mut rate = self.params.rate.smoothed.next();
@@ -382,18 +372,30 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
           if trigger >= 1.0 {
             pan *= rand::thread_rng().gen_range(-1.0..=1.0);
             jitter *= rand::thread_rng().gen::<f32>();
-            if !self.pitches.is_empty() {
-              self.midi_idx %= self.pitches.len();
-              rate *= self.midi_rates[self.pitches[self.midi_idx]] + (rmod * modulator);
-              self.midi_idx += 1;
-            } 
-            self.granulator.trigger_new(
-              position,
-              duration,
-              pan,
-              rate,
-              jitter
-            );
+            for p in self.pitches.iter() {
+              let r = rate * self.midi_rates[*p] + (rmod * modulator);
+              self.granulator.trigger_new(
+                position,
+                duration,
+                pan,
+                r,
+                jitter
+              );
+
+            }
+            // trigger grains for all active midi notes at once. 
+            // if !self.pitches.is_empty() {
+            //   self.midi_idx %= self.pitches.len();
+            //   rate *= self.midi_rates[self.pitches[self.midi_idx]] + (rmod * modulator);
+            //   self.midi_idx += 1;
+            // } 
+            // self.granulator.trigger_new(
+            //   position,
+            //   duration,
+            //   pan,
+            //   rate,
+            //   jitter
+            // );
           }
 
           let out_frame = self.granulator.play::<Linear, Linear>();
