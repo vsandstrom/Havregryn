@@ -50,7 +50,6 @@ struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   sr_recip:        f32,
   pitches:         Vec<usize>,
   midi_rates:      [f32; MIDI],
-  midi_idx:        usize,
 }
 
 #[derive(Enum, PartialEq)]
@@ -122,7 +121,6 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
       start_bool:      true,
       pitches:         vec!(),
       midi_rates:      [0.0; MIDI],
-      midi_idx:        0
     }
   }
 }
@@ -342,9 +340,9 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         let duration  = self.params.duration.smoothed.next();
         let rmod = self.params.rate_mod_amount.smoothed.next();
         let rfrq = self.params.rate_mod_freq.smoothed.next();
-        let mut rate = self.params.rate.smoothed.next();
-        let mut jitter  = self.params.jitter.smoothed.next();
-        let mut pan = self.params.spread.smoothed.next();
+        let rate = self.params.rate.smoothed.next();
+        let jitter  = self.params.jitter.smoothed.next();
+        let pan = self.params.spread.smoothed.next();
 
         let trigger = match self.params.random.value() {
           true => {
@@ -370,32 +368,17 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
           };
 
           if trigger >= 1.0 {
-            pan *= rand::thread_rng().gen_range(-1.0..=1.0);
-            jitter *= rand::thread_rng().gen::<f32>();
+            let pan = pan * rand::thread_rng().gen_range(-1.0..=1.0);
+            let jitter = jitter * rand::thread_rng().gen::<f32>();
             for p in self.pitches.iter() {
-              let r = rate * self.midi_rates[*p] + (rmod * modulator);
               self.granulator.trigger_new(
                 position,
                 duration,
                 pan,
-                r,
+                rate * self.midi_rates[*p] + (rmod * modulator),
                 jitter
               );
-
             }
-            // trigger grains for all active midi notes at once. 
-            // if !self.pitches.is_empty() {
-            //   self.midi_idx %= self.pitches.len();
-            //   rate *= self.midi_rates[self.pitches[self.midi_idx]] + (rmod * modulator);
-            //   self.midi_idx += 1;
-            // } 
-            // self.granulator.trigger_new(
-            //   position,
-            //   duration,
-            //   pan,
-            //   rate,
-            //   jitter
-            // );
           }
 
           let out_frame = self.granulator.play::<Linear, Linear>();
@@ -430,8 +413,14 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Vst3Plugin for Havregryn<NUMG
 
   // And also don't forget to change these categories
   const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] =
-      &[Vst3SubCategory::Fx, Vst3SubCategory::Dynamics];
+    &[
+      Vst3SubCategory::Fx, 
+      Vst3SubCategory::Dynamics,
+      Vst3SubCategory::Instrument,
+      Vst3SubCategory::Delay,
+      Vst3SubCategory::Stereo
+    ];
 }
 
 // nih_export_clap!(Havregryn<16, {8*48000}>);
-nih_export_vst3!(Havregryn<16, {8*48000}>);
+nih_export_vst3!(Havregryn<32, {8*48000}>);
