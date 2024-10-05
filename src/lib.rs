@@ -224,8 +224,8 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     main_input_channels: NonZeroU32::new(2),
     main_output_channels: NonZeroU32::new(2),
 
-    aux_input_ports: &[],
-    aux_output_ports: &[],
+    aux_input_ports: &[new_nonzero_u32(2)],
+    aux_output_ports: &[new_nonzero_u32(2)],
 
     // Individual ports and the layout as a whole can be named here. By default these names
     // are generated as needed. This layout will be called 'Stereo', while a layout with
@@ -303,16 +303,6 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
 
     // Once per buffer
     for mut frame in buffer.iter_samples() {
-      // Mono sum of input
-      // since frame is already a product of an iterator, 
-      // this should be fine.
-      let mono: f32 = unsafe {(
-        *frame.get_unchecked_mut(0) 
-        + *frame.get_unchecked_mut(1)
-        ) * 0.5
-      };
-
-
       'midi_loop: while let Some(event) = context.next_event() {
         // if event.timing() != sample_id as u32 {
         //   break;
@@ -355,7 +345,15 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
             self.imp.play(trig)
           }
         };
-        
+      
+        // Mono sum of input
+        // since frame is already a product of an iterator, 
+        // this should be fine.
+        let mono: f32 = unsafe {
+          ( *frame.get_unchecked_mut(0) 
+          + *frame.get_unchecked_mut(1)
+          ) * 0.5
+        };
         
         // granulator record buffer returns None when the buffer is full.
         if self.granulator.record(mono).is_none() {
