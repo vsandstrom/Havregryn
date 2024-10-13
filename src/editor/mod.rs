@@ -12,7 +12,7 @@ use components::{
   body::body,
 };
 
-#[derive(Lens)]
+#[derive(Lens, Clone)]
 pub(crate) struct Data {
     pub params: Arc<HavregrynParams>,
 }
@@ -23,16 +23,12 @@ pub(crate) fn default_state() -> Arc<ViziaState> {
   ViziaState::new(||(500, 440))
 }
 
-pub fn create(params: Arc<HavregrynParams>, editor_state: Arc<ViziaState>) -> Option<Box<dyn Editor>> {
+pub fn create(params: Data, editor_state: Arc<ViziaState>) -> Option<Box<dyn Editor>> {
   create_vizia_editor(editor_state, ViziaTheming::Custom, move |cx, _| {
     cx.add_stylesheet(include_style!("src/styles.css")).expect("failed to read stylesheet");
     assets::register_noto_sans_thin(cx);
     assets::register_noto_sans_light(cx);
-
-    Data {
-      params: params.clone(),
-    }.build(cx);
-    
+    params.clone().build(cx);
     build_gui(cx);
   })
 }

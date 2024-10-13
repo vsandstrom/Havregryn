@@ -1,4 +1,4 @@
-use nih_plug_vizia::widgets::ParamSlider;
+use nih_plug_vizia::widgets::{ParamSlider, ParamSliderExt, ParamSliderStyle};
 use nih_plug_vizia::vizia::prelude::*;
 use crate::Param;
 
@@ -25,6 +25,7 @@ pub fn create_slider<L, Params, P, FMap>(
       .height(label_height)
       .text_align(TextAlign::Left);
     ParamSlider::new(cx, params, f)
+      .id("slider")
       .height(height)
       .width(width);
   })

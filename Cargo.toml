@@ -1,10 +1,10 @@
 [package]
 name = "havregryn"
-version = "0.1.0"
+version = "0.1.101"
 edition = "2021"
 authors = ["Viktor Sandström <sandstrom.viktor@gmail.com>"]
 license = "GPL-3.0-or-later"
-homepage = "https://youtu.be/dQw4w9WgXcQ"
+homepage = "https://github.com/vsandstrom/havregryn.git"
 description = "Granular sampler"
 
 [workspace]
@@ -18,7 +18,6 @@ crate-type = ["cdylib"]
 # thread in debug builds.
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug", features = ["assert_process_allocs", "standalone"] }
 nih_plug_vizia = { git = "https://github.com/robbert-vdh/nih-plug" }
-# nih_plug_vizia = { git = "https://github.com/robbert-vdh/nih-plug" }
 rust_dsp = { git = "https://github.com/vsandstrom/rust_dsp", branch = "dev", version = "0.1.12" }
 atomic_float = "0.1"
 rand = "0.8.5"
@@ -30,6 +29,7 @@ vec-collections = "0.4.3"
 [profile.release]
 lto = "thin"
 strip = "symbols"
+
 
 [profile.profiling]
 inherits = "release"

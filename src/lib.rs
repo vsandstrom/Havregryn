@@ -234,7 +234,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
   }];
 
 
-  const MIDI_INPUT: MidiConfig = MidiConfig::MidiCCs;
+  const MIDI_INPUT: MidiConfig = MidiConfig::Basic;
   const MIDI_OUTPUT: MidiConfig = MidiConfig::None;
 
   const SAMPLE_ACCURATE_AUTOMATION: bool = true;
@@ -289,7 +289,9 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
   
   fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
     editor::create(
-      self.params.clone(),
+      editor::Data{
+        params: self.params.clone()
+      },
       self.params.editor_state.clone()
     )
   }
