@@ -1,7 +1,10 @@
 mod editor;
 mod multitable;
 
-use std::sync::Arc;
+use std::{
+  collections::HashSet,
+  sync::Arc
+};
 use rand::Rng;
 
 use nih_plug::prelude::*;
@@ -17,7 +20,7 @@ use rust_dsp::{
   interpolation::Linear,
   trig::{Dust, Impulse, Trigger},
   noise::Noise,
-  dsp::math::mtor
+  dsp::math::midi_to_rate
 };
 
 /* 
@@ -35,7 +38,7 @@ use crate::multitable::MultiTable;
 const SIZE: usize = 1<<13;
 const MIDI: usize = 1<<7;
 
-struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
+pub struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   params:          Arc<HavregrynParams>,
   granulator:      Granulator<NUMGRAINS, BUFSIZE>,
   rate_modulator:  MultiTable,
@@ -48,7 +51,7 @@ struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   dust:            Dust,
   start_bool:      bool,
   sr_recip:        f32,
-  pitches:         Vec<usize>,
+  pitches:         HashSet<usize>,
   midi_rates:      [f32; MIDI],
 }
 
@@ -62,7 +65,7 @@ enum ModShape {
 }
 
 #[derive(Params)]
-struct HavregrynParams {
+pub struct HavregrynParams {
   /// The parameter's ID is used to identify the parameter in the wrappred plugin API. As long as
   /// these IDs remain constant, you can rename and reorder these fields as you wish. The
   /// parameters are exposed to the host in the same order they were defined. In this case, this
@@ -119,7 +122,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
       // sample_color_deactive: Color::rgba(0xfa, 0xfa, 0xfa, 0x00),
       sr_recip:        0.0,
       start_bool:      true,
-      pitches:         vec!(),
+      pitches:         HashSet::with_capacity(128),
       midi_rates:      [0.0; MIDI],
     }
   }
@@ -274,7 +277,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
 
     // initialize midi lookup table
     for i in 0..MIDI {
-      self.midi_rates[i] = mtor(i as u8)
+      self.midi_rates[i] = midi_to_rate(i as u8)
     }
     // for (i, note) in self.midi_rates.iter_mut().enumerate() {
     //   *note = f32::powf(2.0, (i as f32 - 36.0) / 12.0);
@@ -310,11 +313,15 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         //   break;
         // }
         match event {
-          NoteEvent::NoteOn {note, ..} => { self.pitches.push(note as usize); },
+          NoteEvent::NoteOn {note, ..} => { 
+            self.pitches.insert(note.into());
+            // self.pitches.(note as usize); 
+          },
           NoteEvent::NoteOff {note, ..} => {
-            if let Some(p) = self.pitches.iter().position(|p| *p == note as usize) {
-              self.pitches.remove(p);
-            }
+            self.pitches.remove(&note.into());
+            // if let Some(p) = self.pitches.iter().position(|p| *p == note as usize) {
+            //   self.pitches.remove(&p);
+            // }
           },
           _ => { break 'midi_loop; }
         }
@@ -336,17 +343,6 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         let jitter  = self.params.jitter.smoothed.next();
         let pan = self.params.spread.smoothed.next();
 
-        let trigger = match self.params.random.value() {
-          true => {
-            // keep the triggers going even when unused
-            let _ = self.imp.play(trig);
-            self.dust.play(trig)
-          },
-          false => {
-            let _ = self.dust.play(trig);
-            self.imp.play(trig)
-          }
-        };
       
         // Mono sum of input
         // since frame is already a product of an iterator, 
@@ -366,20 +362,50 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
             ModShape::Square => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
             // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
           };
-
-          if trigger >= 1.0 {
-            let pan = pan * rand::thread_rng().gen_range(-1.0..=1.0);
-            let jitter = jitter * rand::thread_rng().gen::<f32>();
-            for p in self.pitches.iter() {
-              self.granulator.trigger_new(
+        
+        let trigger = match self.params.random.value() {
+          true => {
+            // keep the triggers going even when unused
+            self.imp.bind(trig, &mut || {
+              for p in self.pitches.iter() {
+                self.granulator.trigger_new(
                 position,
                 duration,
                 pan,
                 rate * self.midi_rates[*p] + (rmod * modulator),
                 jitter
-              );
-            }
+              );}
+            });
+            self.dust.play(trig)
+          },
+          false => {
+            self.dust.bind(trig, &mut || {
+              for p in self.pitches.iter() {
+                self.granulator.trigger_new(
+                position,
+                duration,
+                pan,
+                rate * self.midi_rates[*p] + (rmod * modulator),
+                jitter
+              );}
+            });
+            self.imp.play(trig)
           }
+        };
+
+          // if trigger >= 1.0 {
+          //   let pan = pan * rand::thread_rng().gen_range(-1.0..=1.0);
+          //   let jitter = jitter * rand::thread_rng().gen::<f32>();
+          //   for p in self.pitches.iter() {
+          //     self.granulator.trigger_new(
+          //       position,
+          //       duration,
+          //       pan,
+          //       rate * self.midi_rates[*p] + (rmod * modulator),
+          //       jitter
+          //     );
+          //   }
+          // }
 
           let out_frame = self.granulator.play::<Linear, Linear>();
 
@@ -424,3 +450,4 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Vst3Plugin for Havregryn<NUMG
 
 // nih_export_clap!(Havregryn<16, {8*48000}>);
 nih_export_vst3!(Havregryn<32, {8*48000}>);
+nih_export_clap!(Havregryn<32, {8*48000}>);

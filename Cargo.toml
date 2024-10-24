@@ -11,14 +11,14 @@ description = "Granular sampler"
 members = ["xtask"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "lib"]
 
 [dependencies]
 # Remove the `assert_process_allocs` feature to allow allocations on the audio
 # thread in debug builds.
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug", features = ["assert_process_allocs", "standalone"] }
 nih_plug_vizia = { git = "https://github.com/robbert-vdh/nih-plug" }
-rust_dsp = { git = "https://github.com/vsandstrom/rust_dsp", branch = "dev", version = "0.1.12" }
+rust_dsp = { git = "https://github.com/vsandstrom/rust_dsp", branch = "dev", version = "0.1.13" }
 atomic_float = "0.1"
 rand = "0.8.5"
 vec-collections = "0.4.3"
