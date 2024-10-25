@@ -56,7 +56,7 @@ pub struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
 }
 
 #[derive(Enum, PartialEq)]
-enum ModShape {
+pub(crate) enum ModShape {
   Sine,
   Tri,
   Saw,
@@ -90,7 +90,7 @@ pub struct HavregrynParams {
   #[id = "rate-mod-amount"]
   pub rate_mod_amount: FloatParam,
   #[id = "rate-mod-shape"]
-  pub rate_mod_shape: EnumParam<ModShape>,
+  rate_mod_shape: EnumParam<ModShape>,
   #[id = "rate-mod-freq"]
   pub rate_mod_freq: FloatParam,
 
@@ -363,49 +363,51 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
             // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
           };
         
-        let trigger = match self.params.random.value() {
-          true => {
-            // keep the triggers going even when unused
-            self.imp.bind(trig, &mut || {
-              for p in self.pitches.iter() {
-                self.granulator.trigger_new(
-                position,
-                duration,
-                pan,
-                rate * self.midi_rates[*p] + (rmod * modulator),
-                jitter
-              );}
-            });
-            self.dust.play(trig)
-          },
-          false => {
-            self.dust.bind(trig, &mut || {
-              for p in self.pitches.iter() {
-                self.granulator.trigger_new(
-                position,
-                duration,
-                pan,
-                rate * self.midi_rates[*p] + (rmod * modulator),
-                jitter
-              );}
-            });
-            self.imp.play(trig)
-          }
-        };
+          let trigger = match self.params.random.value() {
+            true => {
+              // keep the triggers going even when unused
+              // self.imp.bind(trig, &mut || {
+              //   for p in self.pitches.iter() {
+              //     self.granulator.trigger_new(
+              //     position,
+              //     duration,
+              //     pan,
+              //     rate * self.midi_rates[*p] + (rmod * modulator),
+              //     jitter
+              //   );}
+              // });
+              self.imp.play(trig);
+              self.dust.play(trig)
+            },
+            false => {
+              // self.dust.bind(trig, &mut || {
+              //   for p in self.pitches.iter() {
+              //     self.granulator.trigger_new(
+              //     position,
+              //     duration,
+              //     pan,
+              //     rate * self.midi_rates[*p] + (rmod * modulator),
+              //     jitter
+              //   );}
+              // });
+              self.dust.play(trig);
+              self.imp.play(trig)
+            }
+          };
 
-          // if trigger >= 1.0 {
-          //   let pan = pan * rand::thread_rng().gen_range(-1.0..=1.0);
-          //   let jitter = jitter * rand::thread_rng().gen::<f32>();
-          //   for p in self.pitches.iter() {
-          //     self.granulator.trigger_new(
-          //       position,
-          //       duration,
-          //       pan,
-          //       rate * self.midi_rates[*p] + (rmod * modulator),
-          //       jitter
-          //     );
-          //   }
-          // }
+          if trigger >= 1.0 {
+            let pan = pan * rand::thread_rng().gen_range(-1.0..=1.0);
+            let jitter = jitter * rand::thread_rng().gen::<f32>();
+            for p in self.pitches.iter() {
+              self.granulator.trigger_new(
+                position,
+                duration,
+                pan,
+                rate * self.midi_rates[*p] + (rmod * modulator),
+                jitter
+              );
+            }
+          }
 
           let out_frame = self.granulator.play::<Linear, Linear>();
 
