@@ -1,11 +1,13 @@
 mod editor;
 mod multitable;
+mod midi;
 
 use std::{
   collections::HashSet,
-  sync::Arc
+  sync::Arc, usize
 };
 use rand::Rng;
+use midi::conv;
 
 use nih_plug::prelude::*;
 use nih_plug_vizia::ViziaState;
@@ -20,6 +22,7 @@ use rust_dsp::{
   interpolation::Linear,
   trig::{Dust, Impulse, Trigger},
   noise::Noise,
+  midibitfield::MidiBitField,
   dsp::math::midi_to_rate
 };
 
@@ -51,7 +54,7 @@ pub struct Havregryn<const NUMGRAINS: usize, const BUFSIZE: usize> {
   dust:            Dust,
   start_bool:      bool,
   sr_recip:        f32,
-  pitches:         HashSet<usize>,
+  pitches:        MidiBitField,
   midi_rates:      [f32; MIDI],
 }
 
@@ -122,7 +125,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
       // sample_color_deactive: Color::rgba(0xfa, 0xfa, 0xfa, 0x00),
       sr_recip:        0.0,
       start_bool:      true,
-      pitches:         HashSet::with_capacity(128),
+      pitches:        MidiBitField::new(),
       midi_rates:      [0.0; MIDI],
     }
   }
@@ -314,15 +317,17 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         // }
         match event {
           NoteEvent::NoteOn {note, ..} => { 
-            self.pitches.insert(note.into());
-            // self.pitches.(note as usize); 
+            self.pitches.add(note).unwrap();
           },
           NoteEvent::NoteOff {note, ..} => {
-            self.pitches.remove(&note.into());
-            // if let Some(p) = self.pitches.iter().position(|p| *p == note as usize) {
-            //   self.pitches.remove(&p);
-            // }
+            self.pitches.remove(note).unwrap();
           },
+          // // untested MIDI PANIC
+          // NoteEvent::MidiCC { cc, .. } => {
+          //   if cc == 123 {
+          //     self.pitches.reset();
+          //   }
+          // }
           _ => { break 'midi_loop; }
         }
       }
@@ -362,51 +367,26 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
             ModShape::Square => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
             // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
           };
-        
-          let trigger = match self.params.random.value() {
-            true => {
-              // keep the triggers going even when unused
-              // self.imp.bind(trig, &mut || {
-              //   for p in self.pitches.iter() {
-              //     self.granulator.trigger_new(
-              //     position,
-              //     duration,
-              //     pan,
-              //     rate * self.midi_rates[*p] + (rmod * modulator),
-              //     jitter
-              //   );}
-              // });
-              self.imp.play(trig);
-              self.dust.play(trig)
-            },
-            false => {
-              // self.dust.bind(trig, &mut || {
-              //   for p in self.pitches.iter() {
-              //     self.granulator.trigger_new(
-              //     position,
-              //     duration,
-              //     pan,
-              //     rate * self.midi_rates[*p] + (rmod * modulator),
-              //     jitter
-              //   );}
-              // });
-              self.dust.play(trig);
-              self.imp.play(trig)
-            }
-          };
 
+          let trigger = match self.params.random.value() {
+            // keep the triggers going even when unused
+            true  => { self.imp.play(trig);  self.dust.play(trig) },
+            false => { self.dust.play(trig); self.imp.play(trig)  }
+          };
+        
           if trigger >= 1.0 {
             let pan = pan * rand::thread_rng().gen_range(-1.0..=1.0);
             let jitter = jitter * rand::thread_rng().gen::<f32>();
-            for p in self.pitches.iter() {
-              self.granulator.trigger_new(
-                position,
-                duration,
-                pan,
-                rate * self.midi_rates[*p] + (rmod * modulator),
-                jitter
-              );
-            }
+            self.pitches.notes(&mut |note| {
+                self.granulator.trigger_new(
+                  position,
+                  duration,
+                  pan,
+                  rate * self.midi_rates[note as usize] + (rmod * modulator),
+                  jitter
+                );
+              }
+            )
           }
 
           let out_frame = self.granulator.play::<Linear, Linear>();

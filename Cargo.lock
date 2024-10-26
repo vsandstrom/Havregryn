@@ -3041,7 +3041,7 @@ dependencies = [
 [[package]]
 name = "rust_dsp"
 version = "0.1.13"
-source = "git+https://github.com/vsandstrom/rust_dsp?branch=dev#06ebe3a41633746c1203ef334cc37df4ecfebbce"
+source = "git+https://github.com/vsandstrom/rust_dsp?branch=dev#5fac23b6ccc101451c80a5ac93bb5dd4bbe6dfa4"
 dependencies = [
  "bitvec",
  "rand 0.8.5",
