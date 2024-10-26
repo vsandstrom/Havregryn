@@ -1,13 +1,8 @@
 mod editor;
 mod multitable;
-mod midi;
 
-use std::{
-  collections::HashSet,
-  sync::Arc, usize
-};
+use std::sync::Arc;
 use rand::Rng;
-use midi::conv;
 
 use nih_plug::prelude::*;
 use nih_plug_vizia::ViziaState;
@@ -116,17 +111,17 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Default for Havregryn<NUMGRAI
       saw: [0.0; SIZE].sawtooth(),
       sqr: [0.0; SIZE].square(),
       // rate_modulator: WaveTable::<WT_BUFSIZE>::new(sin.borrow_mut(), 0.0),
-      rate_modulator:  MultiTable::new(),
-      rate_random_mod: Noise::new(0.0),
-      granulator:      Granulator::new(&env_shape, 0.0),
-      imp:             Impulse::new(0.0),
-      dust:            Dust::new(0.0),
+      rate_modulator:   MultiTable::new(),
+      rate_random_mod:  Noise::new(0.0),
+      granulator:       Granulator::new(&env_shape, 0.0),
+      imp:              Impulse::new(0.0),
+      dust:             Dust::new(0.0),
       // sample_color_active: Color::rgba(0xff, 0x25, 0x5c, 0x00),
       // sample_color_deactive: Color::rgba(0xfa, 0xfa, 0xfa, 0x00),
-      sr_recip:        0.0,
-      start_bool:      true,
-      pitches:        MidiBitField::new(),
-      midi_rates:      [0.0; MIDI],
+      sr_recip:         0.0,
+      start_bool:       true,
+      pitches:          MidiBitField::new(),
+      midi_rates:       std::array::from_fn(|i| midi_to_rate(i as u8)),
     }
   }
 }
@@ -271,20 +266,9 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
     self.imp.set_samplerate(sr);
     self.dust.set_samplerate(sr);
     self.granulator.set_samplerate(sr);
-
-    // self.granulators[0].set_buffersize((4.0 * sr) as usize);
-    // self.granulators[1].set_buffersize((4.0 * sr) as usize);
     self.rate_modulator.set_samplerate(sr);
     self.rate_random_mod.set_samplerate(sr);
     self.sr_recip = 1.0 / sr;
-
-    // initialize midi lookup table
-    for i in 0..MIDI {
-      self.midi_rates[i] = midi_to_rate(i as u8)
-    }
-    // for (i, note) in self.midi_rates.iter_mut().enumerate() {
-    //   *note = f32::powf(2.0, (i as f32 - 36.0) / 12.0);
-    // }
     true
   }
 
@@ -305,12 +289,13 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
   fn process(
     &mut self,
     buffer: &mut Buffer,
-    _aux: &mut AuxiliaryBuffers,
+    aux: &mut AuxiliaryBuffers,
     context: &mut impl ProcessContext<Self>,
   ) -> ProcessStatus {
 
+
     // Once per buffer
-    for mut frame in buffer.iter_samples() {
+    for (mut frame, mut aux_frame) in buffer.iter_samples().zip(aux.inputs[0].iter_samples()) {
       'midi_loop: while let Some(event) = context.next_event() {
         // if event.timing() != sample_id as u32 {
         //   break;
@@ -353,8 +338,8 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         // since frame is already a product of an iterator, 
         // this should be fine.
         let mono: f32 = unsafe {
-          ( *frame.get_unchecked_mut(0) 
-          + *frame.get_unchecked_mut(1)
+          ( *frame.get_unchecked_mut(0) + *aux_frame.get_unchecked_mut(0)
+          + *frame.get_unchecked_mut(1) + *aux_frame.get_unchecked_mut(1)
           ) * 0.5
         };
         

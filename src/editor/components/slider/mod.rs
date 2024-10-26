@@ -1,4 +1,4 @@
-use nih_plug_vizia::widgets::{ParamSlider, ParamSliderExt, ParamSliderStyle};
+use nih_plug_vizia::widgets::ParamSlider;
 use nih_plug_vizia::vizia::prelude::*;
 use crate::Param;
 
