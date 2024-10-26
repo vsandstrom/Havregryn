@@ -1,6 +1,6 @@
 [package]
 name = "havregryn"
-version = "0.1.101"
+version = "0.1.2"
 edition = "2021"
 authors = ["Viktor Sandström <sandstrom.viktor@gmail.com>"]
 license = "GPL-3.0-or-later"
