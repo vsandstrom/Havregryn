@@ -333,7 +333,6 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         let jitter  = self.params.jitter.smoothed.next();
         let pan = self.params.spread.smoothed.next();
 
-      
         // Mono sum of input
         // since frame is already a product of an iterator, 
         // this should be fine.
@@ -346,9 +345,9 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
         // granulator record buffer returns None when the buffer is full.
         if self.granulator.record(mono).is_none() {
           let modulator = match self.params.rate_mod_shape.value() {
-            ModShape::Sine =>   { self.rate_modulator.play(&self.sin, rfrq, 0.0) },
-            ModShape::Tri =>    { self.rate_modulator.play(&self.tri, rfrq, 0.0) },
-            ModShape::Saw =>    { self.rate_modulator.play(&self.saw, rfrq, 0.0) },
+            ModShape::Sine   => { self.rate_modulator.play(&self.sin, rfrq, 0.0) },
+            ModShape::Tri    => { self.rate_modulator.play(&self.tri, rfrq, 0.0) },
+            ModShape::Saw    => { self.rate_modulator.play(&self.saw, rfrq, 0.0) },
             ModShape::Square => { self.rate_modulator.play(&self.sqr, rfrq, 0.0) },
             // ModShape::RANDOM => { self.rate_random_mod.play(rfrq * self.sr_recip) },
           };
@@ -415,6 +414,5 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Vst3Plugin for Havregryn<NUMG
     ];
 }
 
-// nih_export_clap!(Havregryn<16, {8*48000}>);
+nih_export_clap!(Havregryn<32, {8*48000}>);
 nih_export_vst3!(Havregryn<32, {8*48000}>);
-// nih_export_clap!(Havregryn<32, {8*48000}>);
