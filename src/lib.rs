@@ -394,7 +394,7 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Plugin for Havregryn<NUMGRAIN
 impl<const NUMGRAINS: usize, const BUFSIZE: usize> ClapPlugin for Havregryn<NUMGRAINS, BUFSIZE> {
   const CLAP_ID: &'static str = "com.your-domain.havregryn";
   const CLAP_DESCRIPTION: Option<&'static str> = Some("Granular sampler");
-  const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
+  const CLAP_MANUAL_URL:  Option<&'static str> = Some(Self::URL);
   const CLAP_SUPPORT_URL: Option<&'static str> = None;
 
   // Don't forget to change these features
@@ -417,4 +417,4 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Vst3Plugin for Havregryn<NUMG
 
 // nih_export_clap!(Havregryn<16, {8*48000}>);
 nih_export_vst3!(Havregryn<32, {8*48000}>);
-nih_export_clap!(Havregryn<32, {8*48000}>);
+// nih_export_clap!(Havregryn<32, {8*48000}>);
