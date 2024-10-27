@@ -414,5 +414,5 @@ impl<const NUMGRAINS: usize, const BUFSIZE: usize> Vst3Plugin for Havregryn<NUMG
     ];
 }
 
-nih_export_clap!(Havregryn<32, {8*48000}>);
+// nih_export_clap!(Havregryn<32, {8*48000}>);
 nih_export_vst3!(Havregryn<32, {8*48000}>);
