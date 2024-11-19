@@ -35,7 +35,9 @@ Since I am a lone developer, this plugin is not notarized by Apple.
 To get this running on macOS, you will have to explicitly tell the OS to run the plug-in. 
 Follow the guide in the link below for **Disabling Gatekeeper for one application only**
 I do _**NOT**_ encourage that you disable Gatekeeper globaly across your platform.<br>
-[How to disable Gatekeeper for applications on macOS](https://disable-gatekeeper.github.io/)
+
+- Download latest release from [Release](https://github.com/vsandstrom/havregryn/releases/latest) page
+- [Disable](https://disable-gatekeeper.github.io/) macOS Gatekeeper for the plugin
 
 ## Building
 
